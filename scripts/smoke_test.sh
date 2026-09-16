@@ -18,7 +18,8 @@ DATA="$(mktemp -d)"
 cleanup() {
     if [ "${KEEP:-0}" != 1 ]; then
         docker rm -f "$NAME" >/dev/null 2>&1 || true
-        rm -rf "$DATA"
+        # The launcher hands /data to uid 472 and keeps some of it root-owned.
+        sudo rm -rf "$DATA" 2>/dev/null || rm -rf "$DATA" 2>/dev/null || true
     fi
 }
 trap cleanup EXIT
