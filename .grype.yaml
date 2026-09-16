@@ -1,0 +1,24 @@
+# Grype ignore rules for the image scan in .github/workflows/security.yml.
+# Every entry is scoped to a path and one advisory and carries the date and
+# the reason; an entry with no reason is a lowered gate. See docs/security.md,
+# "Out of scope", and docs/decisions.md.
+ignore:
+  # 2026-09-16: Go modules compiled into Grafana's own binary and the backend
+  # plugins Grafana bundles, under /usr/share/grafana. They are upstream's
+  # build (grafana/grafana:13.2.2-ubuntu) and only a Grafana release changes
+  # them; this repository rebuilds against each release. OS packages, and
+  # everything this Dockerfile adds (the SWIS backend under plugins-bundled/
+  # trooperthorn-swis-datasource is built here with a current Go), stay
+  # gated. Re-check on every Grafana bump and drop each entry once clear.
+  - vulnerability: GHSA-ffqx-q65f-36jf
+    package:
+      name: github.com/grafana/tempo
+      location: /usr/share/grafana/**
+  - vulnerability: GHSA-hrxh-6v49-42gf
+    package:
+      name: google.golang.org/grpc
+      location: /usr/share/grafana/**
+  - vulnerability: CVE-2026-56865
+    package:
+      name: stdlib
+      location: /usr/share/grafana/**

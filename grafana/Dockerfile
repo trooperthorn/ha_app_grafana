@@ -55,8 +55,12 @@ FROM grafana/grafana:13.2.2-ubuntu@sha256:9a68a82ec38931e1baacee5d471cf74aa42565
 
 USER root
 
+# The upgrade applies Ubuntu's pending security updates to the packages
+# Grafana's image shipped with (glibc had four open advisories on
+# 2026-09-16); the scan in security.yml gates the result.
 # hadolint ignore=DL3008
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends \
         nginx-light \
         ttyd \
