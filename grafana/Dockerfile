@@ -10,6 +10,8 @@
 #   ttyd         the terminal server, off unless the option turns it on
 #   jq           reads /data/options.json; bashio is not in this image
 #   sqlite3      read-only inspection of grafana.db from the terminal
+#   nano, less   the terminal's editor and pager; Ubuntu's minimal image has neither
+#   procps       ps and pgrep, for the terminal and the smoke test
 #   unzip        unpacking verified custom plugin zips
 #   the SolarWinds SWIS data source plugin, built here from the pinned
 #   OrionGuides commit so the image carries its own provenance and no
@@ -63,6 +65,8 @@ RUN apt-get update \
         unzip \
         logrotate \
         procps \
+        nano \
+        less \
     && rm -rf /var/lib/apt/lists/* \
     # Nothing that opens a connection to another host: the terminal is local
     # to this container by construction, and CI asserts these stay absent.
