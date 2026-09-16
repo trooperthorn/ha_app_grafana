@@ -244,9 +244,10 @@ NGINX_PID=$!
 
 TTYD_PID=""
 if [ "$TERMINAL_ENABLED" = "true" ]; then
-    export GRAFANA_TERM_RECORD="$(config_value 'terminal_session_recording' 'true')"
-    export GRAFANA_TERM_IDLE_MINUTES="$(config_value 'terminal_idle_timeout_minutes' '30')"
-    export GRAFANA_TERM_VERSION="$APP_VERSION"
+    GRAFANA_TERM_RECORD="$(config_value 'terminal_session_recording' 'true')"
+    GRAFANA_TERM_IDLE_MINUTES="$(config_value 'terminal_idle_timeout_minutes' '30')"
+    GRAFANA_TERM_VERSION="$APP_VERSION"
+    export GRAFANA_TERM_RECORD GRAFANA_TERM_IDLE_MINUTES GRAFANA_TERM_VERSION
     log_info "Starting the terminal server on 127.0.0.1:7681 (recording=${GRAFANA_TERM_RECORD}, idle=${GRAFANA_TERM_IDLE_MINUTES}m)."
     # -a lets nginx pass the Home Assistant username as the wrapper's
     # argument; the browser cannot set it because nginx rewrites the URL.
@@ -264,7 +265,7 @@ GRAFANA_PID=$!
 shutdown() {
     log_info "Stopping..."
     kill -TERM "$GRAFANA_PID" 2>/dev/null || true
-    [ -n "$TTYD_PID" ] && kill -TERM "$TTYD_PID" 2>/dev/null || true
+    if [ -n "$TTYD_PID" ]; then kill -TERM "$TTYD_PID" 2>/dev/null || true; fi
     kill -QUIT "$NGINX_PID" 2>/dev/null || true
     wait "$GRAFANA_PID" 2>/dev/null || true
     exit 0

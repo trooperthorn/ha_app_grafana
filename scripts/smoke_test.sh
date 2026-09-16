@@ -43,7 +43,7 @@ echo "== starting $IMAGE"
 docker run -d --name "$NAME" -v "$DATA:/data" "$IMAGE" >/dev/null
 
 echo "== waiting for healthy"
-for i in $(seq 1 40); do
+for _ in $(seq 1 40); do
     status="$(docker inspect --format='{{.State.Health.Status}}' "$NAME" 2>/dev/null || echo unknown)"
     [ "$status" = "healthy" ] && break
     [ "$status" = "unhealthy" ] && fail "container reported unhealthy"
