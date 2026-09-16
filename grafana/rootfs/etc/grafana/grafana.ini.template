@@ -13,7 +13,7 @@ instance_name = Home Assistant
 data = /data/grafana
 logs = /data/log/grafana
 plugins = /data/plugins
-bundled_plugins = /usr/share/grafana/plugins-bundled
+bundled_plugins = /opt/grafana-app/plugins-bundled
 provisioning = /data/provisioning
 
 [server]

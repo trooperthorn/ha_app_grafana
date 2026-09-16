@@ -113,6 +113,10 @@ done
 docker exec "$NAME" test -x /usr/share/grafana/bin/grafana || fail "grafana binary missing"
 echo "  ok"
 
+echo "== bundled plugin path"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/gpx_swis_linux_amd64 || fail "SWIS backend is not under /opt/grafana-app"
+echo "  Grafana's own plugins-bundled directory holds: $(docker exec "$NAME" ls /usr/share/grafana/plugins-bundled 2>/dev/null || echo '(absent)')"
+
 echo "== state lives under /data, nothing downloaded"
 docker exec "$NAME" test -f /data/grafana/grafana.db || fail "grafana.db is not under /data/grafana"
 if docker logs "$NAME" 2>&1 | grep -q "plugin.backgroundinstaller"; then

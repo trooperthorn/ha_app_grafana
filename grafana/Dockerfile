@@ -80,13 +80,16 @@ RUN apt-get update \
     && chown -R 472:472 /var/lib/nginx /var/log/nginx /run/grafana-app \
     && rm -f /etc/nginx/sites-enabled/default
 
-# The SWIS plugin, bundled. plugins-bundled is a separate path from the
-# user plugin directory under /data so an app update replaces this one and
-# never touches what the operator installed.
-COPY --from=swis-frontend /src/dist /usr/share/grafana/plugins-bundled/trooperthorn-swis-datasource
-COPY --from=swis-backend /out/ /usr/share/grafana/plugins-bundled/trooperthorn-swis-datasource/
-RUN chmod 0755 /usr/share/grafana/plugins-bundled/trooperthorn-swis-datasource/gpx_swis_* \
-    && chown -R root:root /usr/share/grafana/plugins-bundled
+# The SWIS plugin, bundled under this app's own tree rather than Grafana's,
+# for two reasons: an app update replaces it without touching what the
+# operator installed under /data/plugins, and the vulnerability scan can
+# exclude Grafana's shipped binaries (/usr/share/grafana, upstream's build)
+# while still scanning this one, which is built here. grafana.ini points
+# bundled_plugins at this directory.
+COPY --from=swis-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource
+COPY --from=swis-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/
+RUN chmod 0755 /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/gpx_swis_* \
+    && chown -R root:root /opt/grafana-app
 
 COPY rootfs /
 RUN chmod 0755 /run.sh /usr/local/bin/grafana_term_open \

@@ -163,11 +163,12 @@ a non-root owner, does not exist in the app configuration schema as read on
 Grafana's own code, the Ubuntu base, and any plugin the operator installs.
 CI scans the image (`security.yml`) and fails on fixable High or Critical
 findings in OS packages and in anything this Dockerfile adds, including the
-SWIS backend it compiles. The Go modules inside Grafana's own binary and its
-bundled backend plugins are excluded by `.grype.yaml`, one advisory per
-entry with the date and reason: they are upstream's build, only a Grafana
-release changes them, and the first scan on 2026-09-16 found three High
-advisories there (a Tempo module, gRPC, and the Go standard library Grafana
-was compiled with). Each entry is re-checked at every Grafana version bump
-and dropped once clear. Ubuntu's pending updates are applied at build time
-so the OS packages are current at each build.
+SWIS backend it compiles, which is placed under `/opt/grafana-app` so it is
+scanned. Grafana's own binaries under `/usr/share/grafana` are excluded by
+`.grype.yaml`, with the date and reason: they are upstream's build, only a
+Grafana release changes them, and the first scan on 2026-09-16 found some
+forty High advisories in the Go modules compiled into them (the Go standard
+library at several versions, x/net, x/crypto, x/text, gRPC, OpenTelemetry,
+a Tempo module). The exclusion is re-examined at every Grafana version
+bump. Ubuntu's pending updates are applied at build time so the OS packages
+are current at each build.

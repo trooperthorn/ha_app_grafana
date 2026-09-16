@@ -13,7 +13,8 @@
 #
 # File rules are enumerated rather than `file,`: the image is Grafana's
 # own, whose layout is documented in its Dockerfile (homepath
-# /usr/share/grafana, binaries under bin/, plugins-bundled/), and the only
+# /usr/share/grafana, binaries under bin/; this app's own plugin under
+# /opt/grafana-app/plugins-bundled), and the only
 # writable trees are /data, /run/grafana-app, /tmp and nginx's own
 # directories. Directory listings are granted everywhere because bash
 # completion, nginx, and Grafana's plugin scanner all list directories,
@@ -81,7 +82,7 @@ profile grafana flags=(attach_disconnected,mediate_deleted) {
   /usr/bin/** rix,
   /usr/sbin/nginx rix,
   /usr/share/grafana/bin/* rix,
-  /usr/share/grafana/plugins-bundled/*/gpx_* rix,
+  /opt/grafana-app/plugins-bundled/*/gpx_* rix,
   /data/plugins/*/gpx_* rix,
   /data/plugins/*/*_linux_* rix,
   /usr/lib/** rm,
@@ -91,6 +92,7 @@ profile grafana flags=(attach_disconnected,mediate_deleted) {
   /usr/share/** r,
   /etc/** r,
   /usr/local/share/** r,
+  /opt/grafana-app/** r,
 
   # Writable trees, and only these.
   /data/ r,

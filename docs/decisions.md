@@ -109,14 +109,19 @@ test green: the eleven commits under `apps/ha_app_grafana/` became this
 repository's history, on top of the initial commit that carries the MIT
 license. The staged copy was removed from OrionGuides.
 
-## 2026-09-16: Grype ignores for Grafana's own Go modules
+## 2026-09-16: Grafana's own binaries excluded from the scan by path
 
-The first image scan failed on three High advisories compiled into
-Grafana's binary and its bundled plugins (Tempo, gRPC, the Go standard
-library). Nothing in this repository can change those short of a Grafana
-release, and refusing to build until Grafana ships one would leave the
-Ubuntu packages and the SWIS backend, which this repository does control,
-unscanned. So `.grype.yaml` excludes exactly those advisories at exactly
-that path, in the HA SOC style of one entry per advisory with the reason,
-and the gate stays on everything else. `apt-get upgrade` was added to the
-build at the same time so glibc's pending fixes land.
+The first image scan failed on High advisories compiled into Grafana's
+binary and its bundled plugins: three at first sight, some forty once the
+whole table was read (the Go standard library at several versions, x/net,
+x/crypto, x/text, gRPC, OpenTelemetry, a Tempo module). Nothing in this
+repository can change those short of a Grafana release, and refusing to
+build until Grafana ships one would leave the Ubuntu packages and the SWIS
+backend, which this repository does control, unscanned. The HA SOC style
+of one ignore entry per advisory was tried first and does not scale to
+forty entries that all say the same thing, so `.grype.yaml` excludes the
+one path, `/usr/share/grafana`, with the reason. To keep the SWIS backend
+inside the gate it moved from Grafana's `plugins-bundled` to
+`/opt/grafana-app/plugins-bundled`, which `grafana.ini` names as the
+bundled plugin path. `apt-get upgrade` was added to the build at the same
+time so glibc's pending fixes land.
