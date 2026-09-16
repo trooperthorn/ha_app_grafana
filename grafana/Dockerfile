@@ -96,7 +96,7 @@ LABEL \
     io.hass.arch="${BUILD_ARCH}" \
     org.opencontainers.image.title="Grafana (hardened)" \
     org.opencontainers.image.source="https://github.com/trooperthorn/ha_app_grafana" \
-    org.opencontainers.image.licenses="Apache-2.0"
+    org.opencontainers.image.licenses="MIT"
 
 # nginx answers /api/health itself from loopback (nginx.conf allows
 # 127.0.0.1), so a 200 means nginx is up and Grafana behind it answered.
