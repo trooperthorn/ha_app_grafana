@@ -14,12 +14,15 @@ set -euo pipefail
 IMAGE="${1:?image tag}"
 NAME="grafana-smoke-$$"
 DATA="$(mktemp -d)"
+# Scratch for the test itself; /data is handed to the grafana user by the launcher.
+WORK="$(mktemp -d)"
 
 cleanup() {
     if [ "${KEEP:-0}" != 1 ]; then
         docker rm -f "$NAME" >/dev/null 2>&1 || true
         # The launcher hands /data to uid 472 and keeps some of it root-owned.
         sudo rm -rf "$DATA" 2>/dev/null || rm -rf "$DATA" 2>/dev/null || true
+        rm -rf "$WORK"
     fi
 }
 trap cleanup EXIT
@@ -63,9 +66,9 @@ expect 403 -u "admin:${pw}" -H 'X-Remote-User-Name: bob' http://127.0.0.1:1337/a
 echo "  ok: basic auth with the generated password is not an entry on the Ingress port"
 
 echo "== bundled SolarWinds plugin"
-j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-swis-datasource/settings > "$DATA/plugin.json" || true
-grep -q '"id":"trooperthorn-swis-datasource"' "$DATA/plugin.json" || fail "plugin settings not served: $(cat "$DATA/plugin.json")"
-grep -q '"backend":true' "$DATA/plugin.json" || fail "plugin is not registered as a backend plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-swis-datasource/settings > "$WORK/plugin.json" || true
+grep -q '"id":"trooperthorn-swis-datasource"' "$WORK/plugin.json" || fail "plugin settings not served: $(cat "$WORK/plugin.json")"
+grep -q '"backend":true' "$WORK/plugin.json" || fail "plugin is not registered as a backend plugin"
 if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-swis-datasource" | grep -qi "problem with signature"; then
     fail "Grafana refused the bundled plugin's signature"
 fi
@@ -76,9 +79,9 @@ expect 403 -H 'X-Remote-User-Name: ed' http://127.0.0.1:1337/terminal/
 expect 200 -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/terminal/
 
 echo "== processes and token"
-docker exec "$NAME" ps -eo user,comm > "$DATA/ps.txt"
+docker exec "$NAME" ps -eo user,comm > "$WORK/ps.txt"
 for p in grafana nginx ttyd; do
-    grep -Eq "^(472|grafana)\s+$p" "$DATA/ps.txt" || fail "$p is not running as the grafana user: $(cat "$DATA/ps.txt")"
+    grep -Eq "^(472|grafana)\s+$p" "$WORK/ps.txt" || fail "$p is not running as the grafana user: $(cat "$WORK/ps.txt")"
 done
 if docker exec "$NAME" sh -c 'tr "\0" "\n" < /proc/$(pgrep -o -x grafana)/environ | grep -q SUPERVISOR_TOKEN'; then
     fail "SUPERVISOR_TOKEN is present in Grafana's environment"
