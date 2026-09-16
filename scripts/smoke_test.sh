@@ -92,9 +92,10 @@ docker exec "$NAME" ps -eo user,comm > "$WORK/ps.txt"
 for p in grafana nginx ttyd; do
     grep -Eq "^(472|grafana)\s+$p" "$WORK/ps.txt" || fail "$p is not running as the grafana user: $(cat "$WORK/ps.txt")"
 done
-# Read as the grafana user: root in the container lacks CAP_SYS_PTRACE and
-# cannot open another user's environ, which would pass this check silently.
-environ="$(docker exec -u 472 "$NAME" sh -c 'tr "\0" "\n" < /proc/$(pgrep -o -x grafana)/environ')" \
+# Grafana's environ is readable only with CAP_SYS_PTRACE (the process is
+# non-dumpable), which the container does not carry; docker exec --privileged
+# grants it to this one command without changing the image.
+environ="$(docker exec --privileged "$NAME" sh -c 'tr "\0" "\n" < /proc/$(pgrep -o -x grafana)/environ')" \
     || fail "could not read Grafana's environment"
 printf '%s\n' "$environ" | grep -q '^GF_PATHS_DATA=/data/grafana$' || fail "Grafana's environment lacks the /data paths"
 if printf '%s\n' "$environ" | grep -q SUPERVISOR_TOKEN; then
