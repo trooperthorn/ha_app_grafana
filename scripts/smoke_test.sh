@@ -68,7 +68,8 @@ echo "  ok: basic auth with the generated password is not an entry on the Ingres
 echo "== bundled SolarWinds plugin"
 j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-swis-datasource/settings > "$WORK/plugin.json" || true
 grep -q '"id":"trooperthorn-swis-datasource"' "$WORK/plugin.json" || fail "plugin settings not served: $(cat "$WORK/plugin.json")"
-grep -q '"backend":true' "$WORK/plugin.json" || fail "plugin is not registered as a backend plugin"
+grep -q '"type":"datasource"' "$WORK/plugin.json" || fail "plugin is not a data source: $(cat "$WORK/plugin.json")"
+docker logs "$NAME" 2>&1 | grep -q 'msg="Plugin registered" pluginId=trooperthorn-swis-datasource' || fail "Grafana did not log the plugin as registered"
 if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-swis-datasource" | grep -qi "problem with signature"; then
     fail "Grafana refused the bundled plugin's signature"
 fi
