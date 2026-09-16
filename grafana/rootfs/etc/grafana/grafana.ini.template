@@ -115,6 +115,12 @@ allow_loading_unsigned_plugins = %%unsigned_plugins%%
 # through the app options, where it is pinned and, for a URL, hash-checked.
 plugin_admin_enabled = false
 plugin_admin_external_manage_enabled = false
+# Grafana 13 otherwise downloads a default set of data source and app
+# plugins from the catalogue in the background at every start. Nothing is
+# fetched at run time that the options did not name.
+preinstall_disabled = true
+preinstall =
+preinstall_sync =
 
 [news]
 news_feed_enabled = false

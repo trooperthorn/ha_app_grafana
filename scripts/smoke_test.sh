@@ -95,6 +95,15 @@ done
 docker exec "$NAME" test -x /usr/share/grafana/bin/grafana || fail "grafana binary missing"
 echo "  ok"
 
+echo "== state lives under /data, nothing downloaded"
+docker exec "$NAME" test -f /data/grafana/grafana.db || fail "grafana.db is not under /data/grafana"
+if docker logs "$NAME" 2>&1 | grep -q "plugin.backgroundinstaller"; then
+    fail "Grafana downloaded plugins at start-up (preinstall is meant to be off)"
+fi
+extra="$(docker exec "$NAME" ls -A /data/plugins)"
+[ -z "$extra" ] || fail "unexpected plugins under /data/plugins: $extra"
+echo "  ok"
+
 echo "== access log identity"
 docker exec "$NAME" tail -n 50 /data/log/nginx/access.log | grep -q '"user_name":"sean"' || fail "access log lacks the Home Assistant username"
 echo "  ok"

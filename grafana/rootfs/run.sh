@@ -226,7 +226,16 @@ LR
 ( while true; do sleep 86400; logrotate --state "/data/log/nginx/logrotate.state" "$RUN_DIR/logrotate.conf" || true; done ) &
 
 # --- Start the services as the grafana user --------------------------------
+# Grafana's image sets GF_PATHS_* in its environment, and an environment
+# variable outranks the configuration file, so the paths are set here as
+# well or the database would land in the image's /var/lib/grafana and be
+# lost on update.
 export GF_PATHS_HOME=/usr/share/grafana
+export GF_PATHS_DATA=/data/grafana
+export GF_PATHS_LOGS=/data/log/grafana
+export GF_PATHS_PLUGINS=/data/plugins
+export GF_PATHS_PROVISIONING=/data/provisioning
+export GF_PATHS_CONFIG="$RUN_DIR/grafana.ini"
 export HOME=/data/grafana
 
 log_info "Starting nginx-light on 1337 (Ingress) and 3080 (API, only if mapped)."
