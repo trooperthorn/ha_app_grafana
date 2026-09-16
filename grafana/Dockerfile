@@ -25,7 +25,7 @@
 # ---- Stage 1: the SWIS data source backend, from the pinned source commit.
 FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS swis-backend
 ARG SWIS_PLUGIN_REPO=https://github.com/trooperthorn/SolarWinds_OrionGuides.git
-ARG SWIS_PLUGIN_COMMIT=07c0f67f927b9e29ef27a61f7226896be7c8dab6
+ARG SWIS_PLUGIN_COMMIT=508ed54fbfc397ecc2634a64ebc11c9c1f8537aa
 # The Supervisor passes BUILD_ARCH (amd64 or aarch64); a plain docker build
 # passes nothing and the machine's own architecture is used.
 ARG BUILD_ARCH

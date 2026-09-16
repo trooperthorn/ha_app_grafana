@@ -102,7 +102,7 @@ OrionGuides.
 | Embedding off | `allow_embedding` option, default false, into `[security] allow_embedding` | Enforced | By reading the template; not exercised by the smoke test |
 | Telemetry off | `[analytics]`, `[snapshots]`, `[news]` | Enforced | By reading the template |
 | Plugin installs only through the options | `plugin_admin_enabled = false`; URL plugins hash-checked in `run.sh` before `unzip` | Enforced | By reading; the hash path is not exercised by the smoke test (no test plugin is hosted) |
-| SWIS plugin provenance | Built in the Dockerfile from OrionGuides at commit `07c0f67`, in pinned `golang` and `node` stages | Enforced by the build | Verified: the smoke test confirms the plugin is registered as a backend plugin without a signature complaint |
+| SWIS plugin provenance | Built in the Dockerfile from OrionGuides at commit `508ed54`, in pinned `golang` and `node` stages | Enforced by the build | Verified: the smoke test confirms the plugin is registered as a backend plugin without a signature complaint |
 | Base image provenance | `grafana/grafana:13.2.2-ubuntu` by manifest digest | Enforced by the build | Digest read from Docker Hub 2026-09-16 |
 | No network client tools | `Dockerfile` removes `wget`, `nc`, `netcat`, `telnet`, `ftp`; the base image has no `ssh`, `python3`, `git`, `rsync` | Enforced | Smoke test asserts each is absent |
 | Terminal recording | `grafana_term_open` runs util-linux `script` with `--log-out` and `--log-timing`, hashes the transcript at exit into `index.jsonl` with the Home Assistant username | Enforced when the option is on | The wrapper is syntax-checked and shellchecked; a recorded session has not been produced in CI |
