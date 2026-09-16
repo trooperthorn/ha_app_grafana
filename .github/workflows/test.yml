@@ -1,0 +1,45 @@
+# Syntax, lint, image build and a behavioural smoke test; release.yml calls it so the same checks gate every release.
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Shell syntax and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Shell syntax and ShellCheck
+        run: |
+          set -euo pipefail
+          for f in grafana/rootfs/run.sh grafana/rootfs/usr/local/bin/grafana_term_open grafana/rootfs/etc/profile.d/grafana_terminal.sh; do
+            bash -n "$f"
+          done
+          shellcheck --shell=bash --exclude=SC1091 grafana/rootfs/run.sh grafana/rootfs/usr/local/bin/grafana_term_open grafana/rootfs/etc/profile.d/grafana_terminal.sh
+      - name: nginx configuration parses
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq nginx-light >/dev/null
+          sudo mkdir -p /run/grafana-app /data/log/nginx /usr/share/grafana-app
+          sudo touch /run/grafana-app/roles.map
+          sed -e 's|%%default_role%%|none|; s|%%terminal_enabled%%|1|' grafana/rootfs/etc/nginx/nginx.conf > /tmp/nginx.conf
+          sudo nginx -t -c /tmp/nginx.conf
+
+  image-smoke-test:
+    name: App image builds, starts, and enforces its gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the app image
+        run: docker build --tag local/app-grafana:${{ github.sha }} grafana
+
+      - name: Start the image and prove the gates it documents
+        run: scripts/smoke_test.sh local/app-grafana:${{ github.sha }}
+

@@ -1,0 +1,15 @@
+{
+  "tag_prefix": "v",
+  "timezone": "America/Chicago",
+  "release_paths": [
+    "grafana"
+  ],
+  "version_fields": [
+    {
+      "path": "grafana/config.yaml",
+      "kind": "regex",
+      "pattern": "^version:\\s*\"([^\"]+)\"",
+      "template": "version: \"{version}\""
+    }
+  ]
+}

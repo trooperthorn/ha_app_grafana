@@ -1,0 +1,133 @@
+# Grafana configuration for the Home Assistant app. run.sh copies this to
+# /run/grafana-app/grafana.ini with the %%placeholders%% filled in from the
+# app options and the generated secrets; nothing else is edited at run time.
+# Every setting here departs from Grafana's default for a reason given in
+# docs/security.md or docs/decisions.md; the rest of Grafana's defaults apply.
+
+app_mode = production
+instance_name = Home Assistant
+
+[paths]
+# Everything Grafana writes lives under this app's own /data, which the
+# Supervisor backs up. The bundled SWIS plugin lives in the image.
+data = /data/grafana
+logs = /data/log/grafana
+plugins = /data/plugins
+bundled_plugins = /usr/share/grafana/plugins-bundled
+provisioning = /data/provisioning
+
+[server]
+protocol = http
+# Loopback only: nginx is the only client. The Ingress gateway cannot reach
+# this port, and neither can the optional API port except through nginx.
+http_addr = 127.0.0.1
+http_port = 3000
+domain = localhost
+enforce_domain = false
+# Ingress strips its prefix before forwarding, so Grafana serves at / and
+# only has to generate links that carry the prefix.
+root_url = %(protocol)s://%(domain)s:%(http_port)s%%ingress_entry%%
+serve_from_sub_path = false
+router_logging = false
+enable_gzip = true
+
+[database]
+type = sqlite3
+path = grafana.db
+wal = true
+
+[analytics]
+# Nothing leaves this container that the operator did not ask for.
+reporting_enabled = false
+check_for_updates = false
+check_for_plugin_updates = false
+feedback_links_enabled = false
+
+[security]
+# The initial admin account exists because Grafana requires one. Its
+# password is generated at first start into /data/secrets/admin_password
+# (0600) and is usable only on the optional API port, since the login form
+# and basic auth are off everywhere else. See docs/security.md.
+admin_user = admin
+admin_password = %%admin_password%%
+# Cookie signing key: 64 random hex characters generated once into
+# /data/secrets/secret_key, not the Supervisor token.
+secret_key = %%secret_key%%
+disable_gravatar = true
+cookie_samesite = lax
+# Ingress terminates TLS in front of this; the cookie must not be marked
+# Secure or the browser would drop it on an http:// Home Assistant.
+cookie_secure = false
+allow_embedding = %%allow_embedding%%
+x_content_type_options = true
+x_xss_protection = true
+data_source_proxy_whitelist =
+
+[snapshots]
+# No publishing dashboards to raintank.io.
+external_enabled = false
+
+[dashboards]
+versions_to_keep = 20
+
+[users]
+allow_sign_up = false
+allow_org_create = false
+auto_assign_org = true
+# A user the auth proxy creates starts as a Viewer; nginx supplies the real
+# role on every request from the admin_users and editor_users options.
+auto_assign_org_role = Viewer
+viewers_can_edit = false
+default_theme = dark
+
+[auth]
+# Ingress is the login. No form, no sign-out to a form that cannot log in.
+disable_login_form = true
+disable_signout_menu = true
+
+[auth.basic]
+enabled = false
+
+[auth.anonymous]
+enabled = false
+
+[auth.proxy]
+enabled = true
+header_name = X-WEBAUTH-USER
+header_property = username
+auto_sign_up = true
+# Only nginx, on loopback, may present these headers. Grafana refuses them
+# from any other source address, and nginx sets them from the identity the
+# Supervisor attached after authenticating the Home Assistant session.
+whitelist = 127.0.0.1
+headers = Name:X-WEBAUTH-NAME Role:X-WEBAUTH-ROLE
+# Grafana keys its sync cache on every header value, so a role change in the
+# app options takes effect on the next request; this bounds the case where
+# nothing else changed.
+sync_ttl = 1
+enable_login_token = false
+
+[plugins]
+# The bundled SWIS data source is not signed by Grafana. run.sh appends any
+# custom plugin the operator marked unsigned.
+allow_loading_unsigned_plugins = %%unsigned_plugins%%
+# No installing from the catalogue through the UI: every plugin comes in
+# through the app options, where it is pinned and, for a URL, hash-checked.
+plugin_admin_enabled = false
+plugin_admin_external_manage_enabled = false
+
+[news]
+news_feed_enabled = false
+
+[unified_alerting]
+enabled = true
+
+[alerting]
+enabled = false
+
+[log]
+mode = console
+level = %%log_level%%
+
+[log.console]
+format = console

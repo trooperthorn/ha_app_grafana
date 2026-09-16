@@ -1,0 +1,60 @@
+configuration:
+  admin_users:
+    name: Grafana administrators
+    description: >-
+      Home Assistant usernames (login names) that get the Grafana Admin
+      role when they open the panel. Administrators can edit data sources,
+      including the SolarWinds credential, and open the terminal.
+  editor_users:
+    name: Grafana editors
+    description: >-
+      Home Assistant usernames that get the Editor role: dashboards and
+      alert rules, but not data sources or users.
+  default_role:
+    name: Everyone else
+    description: >-
+      What a Home Assistant user in neither list gets. "none" shows a page
+      explaining how to be added; "Viewer" grants read-only access to every
+      dashboard.
+  allow_embedding:
+    name: Allow embedding in other pages
+    description: >-
+      Off: Grafana renders only inside Ingress. On: any page may frame it,
+      which the Home Assistant iframe card needs, at the cost of
+      clickjacking protection. Off by default.
+  terminal_enabled:
+    name: Terminal
+    description: >-
+      Offer a bash terminal inside this container to Grafana administrators,
+      at /terminal/ under the panel. It reaches this container's own files
+      and the grafana cli, nothing beyond. Off by default.
+  terminal_session_recording:
+    name: Record terminal sessions
+    description: >-
+      Write every terminal session to a transcript with timing under the
+      app's data directory and record its hash.
+  terminal_idle_timeout_minutes:
+    name: Terminal idle timeout (minutes)
+    description: >-
+      Close a shell that has sat at its prompt for this long. 0 disables.
+  plugins:
+    name: Catalogue plugins
+    description: >-
+      Grafana catalogue plugin ids to install, one per entry, as "id" or
+      "id@version". Installed into the app's data directory on start when
+      missing, so an update of this app does not remove them.
+  custom_plugins:
+    name: Custom plugins
+    description: >-
+      Plugins from a URL, each with the SHA-256 of the zip. Nothing is
+      unpacked unless the hash matches. Set "unsigned" for a plugin Grafana
+      has not signed; it is then listed in allow_loading_unsigned_plugins.
+  log_level:
+    name: Grafana log level
+    description: Verbosity of Grafana's own log.
+  access_log_retention_days:
+    name: Access log retention (days)
+    description: >-
+      How many daily rotations of the web access log (one JSON line per
+      request, with the Home Assistant user) to keep under the data
+      directory.

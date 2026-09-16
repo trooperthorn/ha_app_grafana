@@ -1,0 +1,45 @@
+#!/bin/bash
+# One terminal session: record it, run bash, hash the transcript at exit.
+# ttyd runs this once per connection and it is the only command ttyd knows.
+# The first argument, when present, is the Home Assistant username nginx
+# put in the URL; a browser cannot supply it because nginx rewrites the URL.
+# Modelled on the HA SOC Terminal's session wrapper.
+set -euo pipefail
+
+SESSIONS_DIR="/data/terminal/sessions"
+RECORD="${GRAFANA_TERM_RECORD:-true}"
+HA_USER="${1:-unknown}"
+[[ "$HA_USER" =~ ^[A-Za-z0-9._@+-]{1,64}$ ]] || HA_USER="unknown"
+
+SESSION_ID="$(date -u +%Y%m%dT%H%M%SZ)-$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export GRAFANA_TERM_SESSION_ID="${SESSION_ID}"
+export GRAFANA_TERM_USER="${HA_USER}"
+export TERM="${TERM:-xterm-256color}"
+
+finish() {
+    local ended bytes digest
+    ended="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    if [ "${RECORD}" = "true" ] && [ -f "${SESSIONS_DIR}/${SESSION_ID}.out" ]; then
+        bytes="$(stat -c %s "${SESSIONS_DIR}/${SESSION_ID}.out")"
+        digest="$(sha256sum "${SESSIONS_DIR}/${SESSION_ID}.out" | cut -d' ' -f1)"
+        printf '{"id":"%s","user":"%s","started":"%s","ended":"%s","bytes":%s,"sha256":"%s"}\n' \
+            "${SESSION_ID}" "${HA_USER}" "${STARTED}" "${ended}" "${bytes}" "${digest}" \
+            >> "${SESSIONS_DIR}/index.jsonl"
+        chmod 600 "${SESSIONS_DIR}/index.jsonl"
+    fi
+}
+trap finish EXIT
+
+if [ "${RECORD}" = "true" ]; then
+    umask 077
+    # util-linux script: transcript and timing as separate files, flushed as
+    # written, so a killed session still leaves what happened so far.
+    script -q -f -e \
+        --log-out "${SESSIONS_DIR}/${SESSION_ID}.out" \
+        --log-timing "${SESSIONS_DIR}/${SESSION_ID}.timing" \
+        -c "bash -l" || status=$?
+    exit "${status:-0}"
+fi
+
+exec bash -l

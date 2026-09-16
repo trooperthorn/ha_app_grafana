@@ -1,0 +1,125 @@
+# AppArmor profile for the Grafana (hardened) app. A file named apparmor.txt
+# beside config.yaml is loaded by the Supervisor as the container's profile,
+# named after the slug ("grafana"), and earns the documented +1 on the app
+# security rating. It replaces Home Assistant's generic default profile.
+#
+# The container has one root process, /run.sh, which fixes the ownership
+# of /data, renders configuration into /run/grafana-app, and starts nginx,
+# ttyd and Grafana as user 472. Everything after that runs unprivileged.
+# The capabilities below are what root needs for that launcher work and
+# what the change of user needs; nothing that a monitoring dashboard has
+# a use for is granted, and the usual escalation capabilities are denied
+# explicitly, whether or not Docker's default set already drops them.
+#
+# File rules are enumerated rather than `file,`: the image is Grafana's
+# own, whose layout is documented in its Dockerfile (homepath
+# /usr/share/grafana, binaries under bin/, plugins-bundled/), and the only
+# writable trees are /data, /run/grafana-app, /tmp and nginx's own
+# directories. Directory listings are granted everywhere because bash
+# completion, nginx, and Grafana's plugin scanner all list directories,
+# and a file rule does not grant that (the HA SOC Terminal profile found
+# this the hard way).
+#
+# Status: NOT verified against a live Supervisor as of 2026-09-16. Only the
+# Supervisor attaches this profile; the CI smoke test runs the image with a
+# plain docker run, which never does. If the app fails to start, or Grafana
+# logs permission errors, check
+#   journalctl _TRANSPORT="audit" -g 'apparmor="DENIED"'
+# on the host for entries naming profile "grafana", and add the `complain`
+# flag below while collecting them, rather than widening rules blind. See
+# docs/security.md, "AppArmor profile".
+
+#include <tunables/global>
+
+profile grafana flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # The launcher forwards TERM to its children; the shell wrapper traps EXIT.
+  signal (send) set=(kill,term,int,hup,quit,cont,usr1),
+  signal (receive),
+
+  # Root-only launcher work: chown /data to 472, then drop to that user.
+  capability chown,
+  capability fowner,
+  capability dac_override,
+  capability setuid,
+  capability setgid,
+  capability kill,
+
+  deny capability sys_admin,
+  deny capability sys_module,
+  deny capability sys_ptrace,
+  deny capability sys_rawio,
+  deny capability net_admin,
+  deny capability net_raw,
+  deny capability net_bind_service,
+  deny capability dac_read_search,
+  deny capability mknod,
+  deny capability sys_chroot,
+  deny mount,
+  deny umount,
+  deny pivot_root,
+  deny ptrace (trace, tracedby),
+
+  # HTTP in from the Ingress gateway, HTTPS out to SolarWinds (17774), the
+  # Grafana catalogue and plugin URLs when configured, DNS. No raw, no
+  # packet, no netlink.
+  network inet stream,
+  network inet dgram,
+  network inet6 stream,
+  network inet6 dgram,
+  unix,
+
+  # Directory listings, read-only, everywhere. Contents are governed below.
+  / r,
+  /**/ r,
+
+  # Programs. Scripts need r as well as ix because the interpreter opens them.
+  /run.sh rix,
+  /usr/local/bin/grafana_term_open rix,
+  /bin/** rix,
+  /usr/bin/** rix,
+  /usr/sbin/nginx rix,
+  /usr/share/grafana/bin/* rix,
+  /usr/share/grafana/plugins-bundled/*/gpx_* rix,
+  /data/plugins/*/gpx_* rix,
+  /data/plugins/*/*_linux_* rix,
+  /usr/lib/** rm,
+  /lib/** rm,
+
+  # Read-only assets and configuration.
+  /usr/share/** r,
+  /etc/** r,
+  /usr/local/share/** r,
+
+  # Writable trees, and only these.
+  /data/ r,
+  /data/** rwk,
+  /run/grafana-app/ r,
+  /run/grafana-app/** rwk,
+  /tmp/ r,
+  /tmp/** rwk,
+  /var/lib/nginx/ r,
+  /var/lib/nginx/** rwk,
+  /var/log/nginx/ r,
+  /var/log/nginx/** rw,
+
+  # Devices: the terminal's pseudo-terminals, randomness, null.
+  /dev/tty rw,
+  /dev/ptmx rw,
+  /dev/pts/ r,
+  /dev/pts/** rw,
+  /dev/null rw,
+  /dev/stdout w,
+  /dev/stderr w,
+  @{PROC}/*/fd/* rw,
+  /dev/zero r,
+  /dev/urandom r,
+  /dev/random r,
+
+  # Own-process reads for Grafana, nginx, bash and the readers.
+  @{PROC}/ r,
+  @{PROC}/** r,
+  /sys/ r,
+  /sys/** r,
+}

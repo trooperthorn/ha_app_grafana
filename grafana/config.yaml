@@ -1,0 +1,93 @@
+name: "Grafana (hardened)"
+description: "Grafana OSS behind Home Assistant Ingress with per-user roles, the SolarWinds SWIS data source built in, a recorded local-only terminal, and a custom AppArmor profile"
+version: "2026.09.16.1"
+slug: "grafana"
+init: false
+startup: services
+# Experimental until a real installation has run it; see docs/decisions.md.
+stage: experimental
+url: "https://github.com/trooperthorn/ha_app_grafana/"
+
+arch:
+  - aarch64
+  - amd64
+
+# Ingress is the only way in by default. Port 1337 inside the container is
+# nginx-light (grafana/nginx.conf), which accepts connections only from the
+# Ingress gateway and loopback, turns the Home Assistant username that
+# Ingress attaches into Grafana's auth-proxy headers, and decides the role
+# from the admin_users and editor_users options. Grafana itself listens on
+# 127.0.0.1:3000 and is never reachable directly. See docs/security.md.
+ingress: true
+ingress_port: 1337
+ingress_stream: true
+panel_icon: mdi:chart-areaspline
+panel_title: "Grafana"
+
+# 3080/tcp is an optional plain-HTTP API listener for automation on the LAN
+# (a Home Assistant REST sensor, a script that renders a panel). It is off
+# (host: null) until the operator maps it, and when mapped it carries no
+# Ingress identity: nginx strips the auth-proxy headers on that path, the
+# login form and basic auth are disabled, so only a Grafana service-account
+# token authenticates there. See docs/security.md, "The optional API port".
+ports:
+  3080/tcp: null
+ports_description:
+  3080/tcp: "Optional Grafana API for automation (service-account tokens only, no login form, plain HTTP). Leave empty to keep it off."
+
+# No host_network, no hassio_api, no homeassistant_api, no docker_api, no
+# privileged capabilities, and no Home Assistant directories mapped in: the
+# community Grafana app maps homeassistant_config, share and ssl, which lets
+# every Grafana plugin read secrets.yaml, .storage and the TLS private keys.
+# This app's only writable tree is its own /data. Do NOT set apparmor: false.
+map: []
+
+# Home Assistant's backup of /data includes the Grafana database, the
+# generated secrets, installed plugins and terminal transcripts. The plugin
+# cache is rebuildable and can be large, so it is excluded.
+backup_exclude:
+  - "plugins/**/node_modules"
+
+options:
+  admin_users: []
+  editor_users: []
+  default_role: "none"
+  allow_embedding: false
+  terminal_enabled: false
+  terminal_session_recording: true
+  terminal_idle_timeout_minutes: 30
+  plugins: []
+  custom_plugins: []
+  log_level: "info"
+  access_log_retention_days: 90
+
+schema:
+  # Home Assistant usernames (the login name, as X-Remote-User-Name carries
+  # it), not display names.
+  admin_users:
+    - str
+  editor_users:
+    - str
+  # What a Home Assistant user who is in neither list gets: nothing (a 403
+  # page that says how to be added), or a read-only Viewer.
+  default_role: list(none|Viewer)
+  # Off: Grafana refuses to render inside any frame except Ingress's own
+  # same-origin one. On: any page may frame it, which the Home Assistant
+  # iframe card needs and clickjacking protection loses.
+  allow_embedding: bool
+  terminal_enabled: bool
+  terminal_session_recording: bool
+  terminal_idle_timeout_minutes: int(0,1440)
+  # Catalogue plugins, "id" or "id@version", installed into /data/plugins on
+  # start when missing. Pin the version.
+  plugins:
+    - str
+  # Plugins from a URL. The sha256 is required and checked before anything
+  # is unpacked; unsigned must be true for a plugin Grafana has not signed.
+  custom_plugins:
+    - name: str
+      url: url
+      sha256: match(^[0-9a-f]{64}$)
+      unsigned: bool?
+  log_level: list(debug|info|warn|error)
+  access_log_retention_days: int(1,3650)
