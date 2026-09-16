@@ -69,7 +69,15 @@ echo "== bundled SolarWinds plugin"
 j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-swis-datasource/settings > "$WORK/plugin.json" || true
 grep -q '"id":"trooperthorn-swis-datasource"' "$WORK/plugin.json" || fail "plugin settings not served: $(cat "$WORK/plugin.json")"
 grep -q '"type":"datasource"' "$WORK/plugin.json" || fail "plugin is not a data source: $(cat "$WORK/plugin.json")"
-docker logs "$NAME" 2>&1 | grep -q 'msg="Plugin registered" pluginId=trooperthorn-swis-datasource' || fail "Grafana did not log the plugin as registered"
+# The backend is proven by running it: a data source pointing at a host that
+# does not exist makes the Go backend's health check answer with its own
+# "could not reach SWIS" message, which no frontend-only plugin could produce.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"swis-smoke","type":"trooperthorn-swis-datasource","access":"proxy","uid":"swis-smoke","jsonData":{"host":"orion.invalid","username":"smoke"},"secureJsonData":{"password":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/ds.json" || true
+grep -q '"uid":"swis-smoke"' "$WORK/ds.json" || fail "could not create a SWIS data source: $(cat "$WORK/ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/swis-smoke/health > "$WORK/health.json" || true
+grep -q "could not reach SWIS" "$WORK/health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/health.json")"
 if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-swis-datasource" | grep -qi "problem with signature"; then
     fail "Grafana refused the bundled plugin's signature"
 fi
