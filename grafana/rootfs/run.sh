@@ -53,6 +53,10 @@ if [ ! -f "$OPTIONS_FILE" ]; then
 fi
 
 # --- /data layout, owned by the grafana user ------------------------------
+# The Supervisor mounts /data root-owned; whatever its mode, the grafana user
+# has to traverse it, and nobody else in this container needs to.
+chown "$GRAFANA_UID:$GRAFANA_GID" /data
+chmod 0750 /data
 mkdir -p /data/grafana /data/plugins \
          /data/provisioning/datasources /data/provisioning/dashboards /data/provisioning/plugins \
          /data/provisioning/notifiers /data/provisioning/alerting /data/provisioning/access-control \
