@@ -103,3 +103,8 @@ complete app repository (`repository.yaml` at its root, the release scripts
 and workflows from the Technitium DNS app) and can be moved to
 `trooperthorn/ha_app_grafana` verbatim; the Dockerfile's pinned OrionGuides
 commit is what keeps the plugin source stable across that move.
+
+Moved on 2026-09-16, the same day, once the OrionGuides CI had run the smoke
+test green: the eleven commits under `apps/ha_app_grafana/` became this
+repository's history, on top of the initial commit that carries the MIT
+license. The staged copy was removed from OrionGuides.
