@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+The SolarWinds SWIS data source plugin's source is now vendored into this
+repository (`grafana/plugins-src/swis-datasource`, at the same commit the
+image previously fetched at build time) instead of being `git fetch`ed
+from `trooperthorn/SolarWinds_OrionGuides` on every build. Merging other
+work into that repository's own branches can no longer change what this
+image builds; no user-visible behavior changes.
+
+## 2026.09.17.2
+
 Fixed: the bundled AppArmor profile granted only read on the `/data` and
 `/run/grafana-app` directory entries themselves (`/data/ r,`), separate
 from the `rwk` granted on their contents (`/data/** rwk,`). `run.sh` chowns

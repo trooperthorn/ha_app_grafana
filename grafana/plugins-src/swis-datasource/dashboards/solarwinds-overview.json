@@ -1,0 +1,460 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_SWIS",
+      "label": "SolarWinds SWIS",
+      "type": "datasource",
+      "pluginId": "trooperthorn-swis-datasource",
+      "pluginName": "SolarWinds SWIS"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "trooperthorn-swis-datasource",
+      "name": "SolarWinds SWIS",
+      "version": "1.0.0"
+    }
+  ],
+  "uid": "swis-overview",
+  "title": "SolarWinds overview",
+  "tags": [
+    "solarwinds",
+    "orion"
+  ],
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timezone": "utc",
+  "templating": {
+    "list": [
+      {
+        "name": "node",
+        "label": "Node",
+        "type": "query",
+        "datasource": {
+          "type": "trooperthorn-swis-datasource",
+          "uid": "swis"
+        },
+        "query": {
+          "refId": "node",
+          "swql": "SELECT TOP 5000\n    n.Caption AS __text,\n    n.NodeID AS __value\nFROM Orion.Nodes n\nORDER BY n.Caption",
+          "format": "table"
+        },
+        "refresh": 1,
+        "sort": 1,
+        "includeAll": false,
+        "multi": false,
+        "current": {},
+        "options": []
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Nodes by status",
+      "type": "piechart",
+      "datasource": {
+        "type": "trooperthorn-swis-datasource",
+        "uid": "swis"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "trooperthorn-swis-datasource",
+            "uid": "swis"
+          },
+          "swql": "SELECT\n    s.StatusName,\n    COUNT(n.NodeID) AS NodeCount\nFROM Orion.Nodes n\nJOIN Orion.StatusInfo s ON n.Status = s.StatusId\nGROUP BY s.StatusName\nORDER BY COUNT(n.NodeID) DESC",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": true,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^NodeCount$/"
+        },
+        "pieType": "donut",
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        }
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Nodes down (not in maintenance)",
+      "type": "table",
+      "datasource": {
+        "type": "trooperthorn-swis-datasource",
+        "uid": "swis"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "trooperthorn-swis-datasource",
+            "uid": "swis"
+          },
+          "swql": "SELECT TOP 500\n    n.Caption,\n    n.IPAddress,\n    n.MachineType,\n    n.StatusDescription,\n    n.MinutesSinceLastSync\nFROM Orion.Nodes n\nWHERE n.Status = 2\n  AND n.UnManaged = FALSE\nORDER BY n.Caption",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": []
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Active alerts",
+      "type": "table",
+      "datasource": {
+        "type": "trooperthorn-swis-datasource",
+        "uid": "swis"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "trooperthorn-swis-datasource",
+            "uid": "swis"
+          },
+          "swql": "SELECT TOP 1000\n    aa.AlertObjectID,\n    ao.AlertConfigurations.Name AS AlertName,\n    ao.AlertConfigurations.Severity,\n    ao.EntityCaption AS TriggeringObject,\n    ao.RelatedNodeCaption AS NodeName,\n    aa.TriggeredDateTime,\n    aa.TriggeredMessage,\n    aa.Acknowledged\nFROM Orion.AlertActive aa\nJOIN Orion.AlertObjects ao ON aa.AlertObjectID = ao.AlertObjectID\nORDER BY ao.AlertConfigurations.Severity DESC, aa.TriggeredDateTime DESC",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Alerts triggered per hour",
+      "type": "barchart",
+      "datasource": {
+        "type": "trooperthorn-swis-datasource",
+        "uid": "swis"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "trooperthorn-swis-datasource",
+            "uid": "swis"
+          },
+          "swql": "SELECT\n    DateTrunc('hour', h.TimeStamp) AS Hour,\n    COUNT(h.AlertHistoryID) AS Triggered\nFROM Orion.AlertHistory h\nWHERE h.EventType = 0\n  AND $__timeFilter(h.TimeStamp)\nGROUP BY DateTrunc('hour', h.TimeStamp)\nORDER BY DateTrunc('hour', h.TimeStamp)",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "orientation": "vertical",
+        "xField": "Hour",
+        "showValue": "never"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Fullest volumes",
+      "type": "bargauge",
+      "datasource": {
+        "type": "trooperthorn-swis-datasource",
+        "uid": "swis"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "trooperthorn-swis-datasource",
+            "uid": "swis"
+          },
+          "swql": "SELECT TOP 15\n    v.Node.Caption AS NodeCaption,\n    v.Caption AS Volume,\n    v.VolumePercentUsed\nFROM Orion.Volumes v\nWHERE v.UnManaged = FALSE\nORDER BY v.VolumePercentUsed DESC",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": true,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^VolumePercentUsed$/"
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Node: $node",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 6,
+      "title": "CPU and memory",
+      "type": "timeseries",
+      "datasource": {
+        "type": "trooperthorn-swis-datasource",
+        "uid": "swis"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "trooperthorn-swis-datasource",
+            "uid": "swis"
+          },
+          "swql": "SELECT TOP 10000\n    c.DateTime,\n    c.AvgLoad,\n    c.AvgPercentMemoryUsed\nFROM Orion.CPULoad c\nWHERE c.NodeID = ${node}\n  AND $__timeFilter(c.DateTime)\nORDER BY c.DateTime",
+          "format": "timeseries"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Response time and packet loss",
+      "type": "timeseries",
+      "datasource": {
+        "type": "trooperthorn-swis-datasource",
+        "uid": "swis"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "trooperthorn-swis-datasource",
+            "uid": "swis"
+          },
+          "swql": "SELECT TOP 10000\n    r.DateTime,\n    r.AvgResponseTime,\n    r.PercentLoss\nFROM Orion.ResponseTime r\nWHERE r.NodeID = ${node}\n  AND $__timeFilter(r.DateTime)\nORDER BY r.DateTime",
+          "format": "timeseries"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "AvgResponseTime"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PercentLoss"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Interface traffic (one series per interface)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "trooperthorn-swis-datasource",
+        "uid": "swis"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "trooperthorn-swis-datasource",
+            "uid": "swis"
+          },
+          "swql": "SELECT TOP 10000\n    t.DateTime,\n    t.Interface.FullName AS Interface,\n    t.InAveragebps,\n    t.OutAveragebps\nFROM Orion.NPM.InterfaceTraffic t\nWHERE t.NodeID = ${node}\n  AND $__timeFilter(t.DateTime)\nORDER BY t.DateTime",
+          "format": "timeseries"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ]
+}

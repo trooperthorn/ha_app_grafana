@@ -1,0 +1,25 @@
+# Development provisioning for `docker compose up` in this directory. The values come from
+# the environment so nothing real is committed. For a production Grafana, see the
+# provisioning example in the README.
+apiVersion: 1
+
+datasources:
+  - name: SolarWinds SWIS
+    uid: swis
+    type: trooperthorn-swis-datasource
+    access: proxy
+    isDefault: false
+    editable: true
+    jsonData:
+      host: ${SWIS_HOST}
+      port: 17774
+      username: ${SWIS_USER}
+      tlsSkipVerify: false
+      # The stock SWIS certificate has no subject alternative names; pin it and skip the name.
+      tlsIgnoreHostname: true
+      maxRows: 10000
+      timeoutSeconds: 60
+      invokeAllow: []
+    secureJsonData:
+      password: ${SWIS_PASSWORD}
+      caCert: ${SWIS_CACERT_PEM}

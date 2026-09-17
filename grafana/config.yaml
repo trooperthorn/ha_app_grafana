@@ -1,6 +1,6 @@
 name: "Grafana (hardened)"
 description: "Grafana OSS behind Home Assistant Ingress with per-user roles, the SolarWinds SWIS data source built in, a recorded local-only terminal, and a custom AppArmor profile"
-version: "2026.09.17.1"
+version: "2026.09.17.2"
 slug: "grafana"
 init: false
 startup: services
