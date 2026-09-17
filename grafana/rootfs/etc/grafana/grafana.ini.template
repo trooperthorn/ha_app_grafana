@@ -34,7 +34,12 @@ enable_gzip = true
 [database]
 type = sqlite3
 path = grafana.db
-wal = true
+# Grafana's own default (Grafana 13's unified storage subsystem opens a
+# second, independent connection pool to this same file; WAL needs every
+# connection to coordinate through a shared-memory index file, which is a
+# documented source of "unable to open database file" (SQLITE_CANTOPEN,
+# error 14) with a second pool involved). See docs/decisions.md.
+wal = false
 
 [analytics]
 # Nothing leaves this container that the operator did not ask for.

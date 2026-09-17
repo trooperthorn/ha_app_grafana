@@ -24,11 +24,13 @@
 # Status: NOT verified against a live Supervisor as of 2026-09-16. Only the
 # Supervisor attaches this profile; the CI smoke test runs the image with a
 # plain docker run, which never does. If the app fails to start, or Grafana
-# logs permission errors, check
-#   journalctl _TRANSPORT="audit" -g 'apparmor="DENIED"'
-# on the host for entries naming profile "grafana", and add the `complain`
-# flag below while collecting them, rather than widening rules blind. See
-# docs/security.md, "AppArmor profile".
+# logs permission errors, check Settings > System > Logs > Host in the
+# Home Assistant UI for lines containing "DENIED" or "apparmor" (AppArmor
+# logs a denial to the kernel audit log under enforce mode too, not only
+# in complain mode, so this works without editing the profile first); the
+# `journalctl` equivalent is in docs/operations.md, "AppArmor denials", for
+# an install with host shell access. See also docs/security.md, "AppArmor
+# profile".
 
 #include <tunables/global>
 
