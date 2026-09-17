@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+Fixed: a `/data` bind mount that refuses ownership changes (rootless
+Docker/Podman without an idmapped mount, some network/virtualized
+filesystem shares) used to make `run.sh` exit immediately on `chown` with
+nothing but "Permission denied", which the Supervisor then restart-looped
+forever. It now continues when the path is already writable by the
+grafana user, and otherwise fails once with a diagnostic. See
+docs/operations.md.
+
 Added a Technitium DNS Server data source, built into the image the same
 way SWIS is: query volume, response totals, and top clients/domains/blocked
 domains from `/api/dashboard/stats/get`. New options `technitium_url` and

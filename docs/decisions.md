@@ -172,6 +172,26 @@ Read-only by construction: it uses only `GET` routes and never HA SOC's
 write-back path (`PUT` to disable a policy or rule), which this plugin has
 no reason to carry.
 
+## 2026-09-17: /data ownership failure degrades instead of crash-looping
+
+Reported: `chown "$GRAFANA_UID:$GRAFANA_GID" /data` failing with "Permission
+denied" under `set -o errexit`, so `run.sh` exited immediately with nothing
+but that one line, and the Supervisor (or `docker run --restart`)
+restarted it in a tight loop that reproduced the same bare error forever.
+The Supervisor's own `/data` mount is fresh and root-owned, so this
+chown never used to fail there; it fails outside the Supervisor when
+`/data` is a bind mount from a Docker/Podman mode or filesystem that
+refuses ownership changes altogether (rootless Docker/Podman without an
+idmapped bind mount, some network or virtualized filesystem shares).
+
+`run.sh`'s `chown_or_verify` now treats that refusal as recoverable: if the
+path is already writable and executable by uid 472 once checked directly,
+it logs a warning and continues without changing ownership; only if the
+path is genuinely unusable by that uid does it exit, once, with a
+diagnostic naming the likely cause and the host-side fixes (chown the host
+path, use a named volume instead of a bind mount, or an idmapped mount).
+See docs/operations.md.
+
 ## 2026-09-16: Grafana's own binaries excluded from the scan by path
 
 The first image scan failed on High advisories compiled into Grafana's

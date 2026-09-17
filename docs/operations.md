@@ -11,6 +11,24 @@
 3. Open the panel. The first request creates your Grafana user with the
    Admin role.
 
+## "chown: changing ownership of '/data': Permission denied" at start
+
+Under the Supervisor `/data` is a fresh, root-owned mount, and `run.sh`'s
+`chown` of it always succeeds. Outside the Supervisor (a plain `docker run`
+or `docker compose` with `/data` bind-mounted from the host), this can fail
+on a Docker/Podman mode or filesystem that refuses to let a container
+change file ownership at all: rootless Docker/Podman without an idmapped
+bind mount, or some network or virtualized filesystem shares. Since
+2026-09-17, `run.sh` no longer aborts the moment this happens (which used
+to restart-loop with nothing but that one line repeated): it checks
+whether the path is already writable by the grafana user (uid/gid 472) and
+continues if so, and otherwise exits once with a diagnostic naming the
+likely cause. If you hit the diagnostic rather than a clean start, fix the
+host side rather than the container: `chown -R 472:472 <the host path
+mapped to /data>`, switch to a plain Docker-managed named volume instead
+of a bind mount, or enable idmapped mounts for the bind mount (`docker run
+--mount type=bind,...,idmap=uids=...` or the Podman/Compose equivalent).
+
 ## Changing roles
 
 Edit `admin_users`, `editor_users` or `default_role` and restart the app.

@@ -43,6 +43,28 @@ as_grafana() {
     setpriv --reuid="$GRAFANA_UID" --regid="$GRAFANA_GID" --clear-groups --inh-caps=-all "$@"
 }
 
+# chown -R one or more paths to the grafana user, tolerating a host/mount
+# that refuses ownership changes altogether (rootless Docker/Podman without
+# an idmapped mount, some virtualized or network filesystems used for a
+# bind-mounted /data). A refusal is fatal only if the first path given is
+# not already usable by the grafana user once checked directly (the rest
+# are assumed to share its mount); either way this fails once with a
+# diagnostic rather than exiting via errexit on a bare "Permission denied"
+# that the Supervisor then restart-loops forever.
+chown_or_verify() {
+    local err
+    if err="$(chown -R "$GRAFANA_UID:$GRAFANA_GID" "$@" 2>&1)"; then
+        return 0
+    fi
+    if as_grafana test -w "$1" -a -x "$1"; then
+        log_warning "Could not chown ${1} and possibly others (${err##*: }); ${1} is already writable by the grafana user, continuing."
+        return 0
+    fi
+    log_error "Could not chown ${1} (${err##*: }), and it is not already writable by uid ${GRAFANA_UID}."
+    log_error "This container cannot fix ownership on this host/mount by itself. This usually means /data is a bind mount from a Docker mode or filesystem that refuses ownership changes (rootless Docker/Podman without an idmapped mount, some network or virtualized filesystem shares). From the host, either: chown -R 472:472 <the host path mapped to /data>, or use a plain Docker-managed named volume instead of a bind mount, or enable idmapped mounts for the bind mount."
+    exit 1
+}
+
 # Grafana's auth proxy is only as trustworthy as the username it is handed,
 # and nginx's map keys are quoted strings. Refuse anything that could not
 # be a Home Assistant username and could break out of a map line.
@@ -60,15 +82,15 @@ fi
 # --- /data layout, owned by the grafana user ------------------------------
 # The Supervisor mounts /data root-owned; whatever its mode, the grafana user
 # has to traverse it, and nobody else in this container needs to.
-chown "$GRAFANA_UID:$GRAFANA_GID" /data
-chmod 0750 /data
+chown_or_verify /data
+chmod 0750 /data 2>/dev/null || true
 mkdir -p /data/grafana /data/plugins \
          /data/provisioning/datasources /data/provisioning/dashboards /data/provisioning/plugins \
          /data/provisioning/notifiers /data/provisioning/alerting /data/provisioning/access-control \
          /data/log/grafana /data/log/nginx /data/terminal/sessions "$SECRETS_DIR" \
          "$RUN_DIR" "$RUN_DIR/client_body" "$RUN_DIR/proxy" "$RUN_DIR/fastcgi" "$RUN_DIR/uwsgi" "$RUN_DIR/scgi"
-chown -R "$GRAFANA_UID:$GRAFANA_GID" /data/grafana /data/plugins /data/provisioning /data/log /data/terminal "$SECRETS_DIR" "$RUN_DIR"
-chmod 0700 "$SECRETS_DIR" /data/terminal /data/terminal/sessions
+chown_or_verify /data/grafana /data/plugins /data/provisioning /data/log /data/terminal "$SECRETS_DIR" "$RUN_DIR"
+chmod 0700 "$SECRETS_DIR" /data/terminal /data/terminal/sessions 2>/dev/null || true
 
 # --- Secrets: generated once, never logged, never derived from a token ----
 if [ ! -s "$SECRETS_DIR/secret_key" ]; then
@@ -80,7 +102,12 @@ if [ ! -s "$SECRETS_DIR/admin_password" ]; then
     log_info "Generated the initial admin password into ${SECRETS_DIR}/admin_password. It is not logged; the terminal can read it, and it works only on the optional API port."
 fi
 chmod 0600 "$SECRETS_DIR/secret_key" "$SECRETS_DIR/admin_password"
-chown "$GRAFANA_UID:$GRAFANA_GID" "$SECRETS_DIR/secret_key" "$SECRETS_DIR/admin_password"
+# Non-fatal like chown_or_verify above, for the same reason: on a mount
+# that refuses ownership changes, root itself already has these values in
+# hand below, and only the terminal's "read the admin password" convenience
+# needs the grafana user able to read the file back later.
+chown "$GRAFANA_UID:$GRAFANA_GID" "$SECRETS_DIR/secret_key" "$SECRETS_DIR/admin_password" 2>/dev/null \
+    || log_warning "Could not chown the generated secrets to the grafana user; the terminal may not be able to read ${SECRETS_DIR}/admin_password back."
 SECRET_KEY="$(cat "$SECRETS_DIR/secret_key")"
 ADMIN_PASSWORD="$(cat "$SECRETS_DIR/admin_password")"
 
@@ -175,7 +202,8 @@ for ((i = 0; i < CUSTOM_COUNT; i++)); do
             fi
             if [ -n "$src" ] && [ -f "$src/plugin.json" ]; then
                 mv "$src" "/data/plugins/${name}"
-                chown -R "$GRAFANA_UID:$GRAFANA_GID" "/data/plugins/${name}"
+                chown -R "$GRAFANA_UID:$GRAFANA_GID" "/data/plugins/${name}" 2>/dev/null \
+                    || log_warning "Could not chown custom plugin ${name} to the grafana user; it may fail to load."
                 log_info "Installed custom plugin ${name} (sha256 verified)."
             else
                 log_error "Custom plugin ${name}: no plugin.json in the zip; not installed."
@@ -223,7 +251,8 @@ if [ -n "$TECHNITIUM_URL" ] && [ -n "$TECHNITIUM_API_TOKEN" ]; then
       sed -e "s|%%technitium_url%%|$(sed_escape "$TECHNITIUM_URL")|g" \
           -e "s|%%technitium_api_token%%|$(sed_escape "$TECHNITIUM_API_TOKEN")|g" \
           /etc/grafana/provisioning-datasources/technitium.yaml.template > "$TECHNITIUM_PROVISIONING" )
-    chown "$GRAFANA_UID:$GRAFANA_GID" "$TECHNITIUM_PROVISIONING"
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$TECHNITIUM_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Technitium provisioning file to the grafana user."
     log_info "Provisioned the Technitium DNS data source (${TECHNITIUM_URL})."
 else
     rm -f "$TECHNITIUM_PROVISIONING"
@@ -240,7 +269,8 @@ if [ -n "$MUSICASSISTANT_URL" ] && [ -n "$MUSICASSISTANT_API_TOKEN" ]; then
       sed -e "s|%%musicassistant_url%%|$(sed_escape "$MUSICASSISTANT_URL")|g" \
           -e "s|%%musicassistant_api_token%%|$(sed_escape "$MUSICASSISTANT_API_TOKEN")|g" \
           /etc/grafana/provisioning-datasources/musicassistant.yaml.template > "$MUSICASSISTANT_PROVISIONING" )
-    chown "$GRAFANA_UID:$GRAFANA_GID" "$MUSICASSISTANT_PROVISIONING"
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$MUSICASSISTANT_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Music Assistant provisioning file to the grafana user."
     log_info "Provisioned the Music Assistant data source (${MUSICASSISTANT_URL})."
 else
     rm -f "$MUSICASSISTANT_PROVISIONING"
@@ -260,7 +290,8 @@ if [ -n "$UNIFI_NETWORK_HOST" ] && [ -n "$UNIFI_NETWORK_API_KEY" ]; then
           -e "s|%%unifi_network_api_key%%|$(sed_escape "$UNIFI_NETWORK_API_KEY")|g" \
           -e "s|%%unifi_network_verify_ssl%%|$(sed_escape "$UNIFI_NETWORK_VERIFY_SSL")|g" \
           /etc/grafana/provisioning-datasources/unifinetwork.yaml.template > "$UNIFI_NETWORK_PROVISIONING" )
-    chown "$GRAFANA_UID:$GRAFANA_GID" "$UNIFI_NETWORK_PROVISIONING"
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$UNIFI_NETWORK_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Unifi Network provisioning file to the grafana user."
     log_info "Provisioned the Unifi Network data source (${UNIFI_NETWORK_HOST})."
 else
     rm -f "$UNIFI_NETWORK_PROVISIONING"
