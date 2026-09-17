@@ -60,6 +60,22 @@ options:
   custom_plugins: []
   log_level: "info"
   access_log_retention_days: 90
+  technitium_url: ""
+  technitium_api_token: ""
+  musicassistant_url: ""
+  musicassistant_api_token: ""
+  unifi_network_host: ""
+  unifi_network_api_key: ""
+  unifi_network_verify_ssl: false
+  unifi_protect_host: ""
+  unifi_protect_api_key: ""
+  unifi_protect_verify_ssl: false
+  homeassistant_url: ""
+  homeassistant_access_token: ""
+  homeassistant_verify_ssl: false
+  hasoc_url: ""
+  hasoc_access_token: ""
+  hasoc_verify_ssl: false
 
 schema:
   # Home Assistant usernames (the login name, as X-Remote-User-Name carries
@@ -91,3 +107,36 @@ schema:
       unsigned: bool?
   log_level: list(debug|info|warn|error)
   access_log_retention_days: int(1,3650)
+  # The bundled Technitium DNS data source is provisioned automatically
+  # when both are set; leave either empty to leave it unprovisioned.
+  technitium_url: str
+  technitium_api_token: password
+  # The bundled Music Assistant data source is provisioned automatically
+  # when both are set; leave either empty to leave it unprovisioned.
+  musicassistant_url: str
+  musicassistant_api_token: password
+  # The bundled Unifi Network data source is provisioned automatically when
+  # both host and api key are set; leave either empty to leave it
+  # unprovisioned. verify_ssl defaults off, matching a typical self-signed
+  # local console.
+  unifi_network_host: str
+  unifi_network_api_key: password
+  unifi_network_verify_ssl: bool
+  # The bundled Unifi Protect data source is provisioned automatically when
+  # both host and api key are set; same verify_ssl default as Unifi Network.
+  unifi_protect_host: str
+  unifi_protect_api_key: password
+  unifi_protect_verify_ssl: bool
+  # The bundled Home Assistant data source is provisioned automatically
+  # when both are set; it queries this app's own Home Assistant instance
+  # over its core WebSocket API (long-term statistics, system health).
+  homeassistant_url: str
+  homeassistant_access_token: password
+  homeassistant_verify_ssl: bool
+  # The bundled HA SOC data source is provisioned automatically when both
+  # are set; HA SOC has no API of its own, so this also targets the same
+  # Home Assistant instance's WebSocket API, with a token for an admin
+  # user (HA SOC's own access gate requires it, and by default the owner).
+  hasoc_url: str
+  hasoc_access_token: password
+  hasoc_verify_ssl: bool

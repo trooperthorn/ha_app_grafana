@@ -21,6 +21,13 @@ APP_VERSION="2026.09.16.1"   # keep in lockstep with config.yaml on every releas
 log_info()    { printf '[%s] INFO: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1"; }
 log_warning() { printf '[%s] WARNING: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1" >&2; }
 log_error()   { printf '[%s] ERROR: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1" >&2; }
+# Gated on the log_level option (set below, before it is first needed), not
+# on Grafana's own [log] level: this is the launcher's own diagnostic
+# output, for a problem in run.sh itself rather than in Grafana.
+log_debug() {
+    [ "${LOG_LEVEL:-info}" = "debug" ] || return 0
+    printf '[%s] DEBUG: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+}
 
 # A scalar option, or the default when absent or null.
 config_value() {
@@ -34,8 +41,61 @@ config_list() {
     jq -r --arg k "$1" '(.[$k] // []) | .[] | tostring' "$OPTIONS_FILE" 2>/dev/null || true
 }
 
+# sed's own delimiter ("|", used below) and its "&" backreference both need
+# escaping in an operator-supplied value before it goes on the replacement
+# side of a substitution.
+sed_escape() { printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'; }
+
 as_grafana() {
     setpriv --reuid="$GRAFANA_UID" --regid="$GRAFANA_GID" --clear-groups --inh-caps=-all "$@"
+}
+
+# At log_level: debug, dump the context around a failed ownership/permission
+# change on a path: who this process actually is, the path's own and its
+# parent's ownership/mode, what filesystem and mount options it sits on,
+# and this process's effective capabilities. This is exactly what
+# distinguishes the causes docs/operations.md lists (rootless Docker/Podman
+# without an idmapped mount vs. a network/virtualized filesystem vs. a
+# capability actually dropped) without guessing from the bare
+# "Permission denied" alone.
+debug_dump_path() {
+    local path="$1"
+    log_debug "-- ownership diagnostics for ${path} --"
+    log_debug "id: $(id 2>&1)"
+    log_debug "stat ${path}: $(stat -c 'owner=%u:%g mode=%a type=%F' "$path" 2>&1)"
+    local parent; parent="$(dirname -- "$path")"
+    log_debug "stat ${parent}: $(stat -c 'owner=%u:%g mode=%a type=%F' "$parent" 2>&1)"
+    if command -v findmnt >/dev/null 2>&1; then
+        log_debug "findmnt ${path}: $(findmnt -T "$path" -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1 | tr '\n' ' ')"
+    else
+        log_debug "mount entry: $(mount 2>&1 | grep -F " ${path} " || echo 'not found (path may be a subdirectory of a mounted volume)')"
+    fi
+    log_debug "capabilities: $(grep -E '^Cap(Eff|Prm|Bnd)' /proc/self/status 2>&1 | tr '\n' ' ')"
+}
+
+# chown -R one or more paths to the grafana user, tolerating a host/mount
+# that refuses ownership changes altogether (rootless Docker/Podman without
+# an idmapped mount, some virtualized or network filesystems used for a
+# bind-mounted /data). A refusal is fatal only if the first path given is
+# not already usable by the grafana user once checked directly (the rest
+# are assumed to share its mount); either way this fails once with a
+# diagnostic rather than exiting via errexit on a bare "Permission denied"
+# that the Supervisor then restart-loops forever.
+chown_or_verify() {
+    local err
+    if err="$(chown -R "$GRAFANA_UID:$GRAFANA_GID" "$@" 2>&1)"; then
+        return 0
+    fi
+    if as_grafana test -w "$1" -a -x "$1"; then
+        log_warning "Could not chown ${1} and possibly others (${err##*: }); ${1} is already writable by the grafana user, continuing."
+        debug_dump_path "$1"
+        return 0
+    fi
+    log_error "Could not chown ${1} (${err##*: }), and it is not already writable by uid ${GRAFANA_UID}."
+    log_error "This container cannot fix ownership on this host/mount by itself. This usually means /data is a bind mount from a Docker mode or filesystem that refuses ownership changes (rootless Docker/Podman without an idmapped mount, some network or virtualized filesystem shares). From the host, either: chown -R 472:472 <the host path mapped to /data>, or use a plain Docker-managed named volume instead of a bind mount, or enable idmapped mounts for the bind mount."
+    log_error "Set log_level: debug and restart to see the full diagnostic (id, ownership/mode, mount, capabilities) this failure produced."
+    debug_dump_path "$1"
+    exit 1
 }
 
 # Grafana's auth proxy is only as trustworthy as the username it is handed,
@@ -52,18 +112,24 @@ if [ ! -f "$OPTIONS_FILE" ]; then
     exit 1
 fi
 
+# Read once, early: log_debug (and anything else in this script) needs it
+# from the very first thing that can go wrong, not just the render() step
+# further down that used to be the only reader.
+LOG_LEVEL="$(config_value 'log_level' 'info')"
+log_debug "log_level is debug; the launcher's own diagnostics (not just Grafana's) are on for this start."
+
 # --- /data layout, owned by the grafana user ------------------------------
 # The Supervisor mounts /data root-owned; whatever its mode, the grafana user
 # has to traverse it, and nobody else in this container needs to.
-chown "$GRAFANA_UID:$GRAFANA_GID" /data
-chmod 0750 /data
+chown_or_verify /data
+chmod 0750 /data 2>/dev/null || true
 mkdir -p /data/grafana /data/plugins \
          /data/provisioning/datasources /data/provisioning/dashboards /data/provisioning/plugins \
          /data/provisioning/notifiers /data/provisioning/alerting /data/provisioning/access-control \
          /data/log/grafana /data/log/nginx /data/terminal/sessions "$SECRETS_DIR" \
          "$RUN_DIR" "$RUN_DIR/client_body" "$RUN_DIR/proxy" "$RUN_DIR/fastcgi" "$RUN_DIR/uwsgi" "$RUN_DIR/scgi"
-chown -R "$GRAFANA_UID:$GRAFANA_GID" /data/grafana /data/plugins /data/provisioning /data/log /data/terminal "$SECRETS_DIR" "$RUN_DIR"
-chmod 0700 "$SECRETS_DIR" /data/terminal /data/terminal/sessions
+chown_or_verify /data/grafana /data/plugins /data/provisioning /data/log /data/terminal "$SECRETS_DIR" "$RUN_DIR"
+chmod 0700 "$SECRETS_DIR" /data/terminal /data/terminal/sessions 2>/dev/null || true
 
 # --- Secrets: generated once, never logged, never derived from a token ----
 if [ ! -s "$SECRETS_DIR/secret_key" ]; then
@@ -75,7 +141,12 @@ if [ ! -s "$SECRETS_DIR/admin_password" ]; then
     log_info "Generated the initial admin password into ${SECRETS_DIR}/admin_password. It is not logged; the terminal can read it, and it works only on the optional API port."
 fi
 chmod 0600 "$SECRETS_DIR/secret_key" "$SECRETS_DIR/admin_password"
-chown "$GRAFANA_UID:$GRAFANA_GID" "$SECRETS_DIR/secret_key" "$SECRETS_DIR/admin_password"
+# Non-fatal like chown_or_verify above, for the same reason: on a mount
+# that refuses ownership changes, root itself already has these values in
+# hand below, and only the terminal's "read the admin password" convenience
+# needs the grafana user able to read the file back later.
+chown "$GRAFANA_UID:$GRAFANA_GID" "$SECRETS_DIR/secret_key" "$SECRETS_DIR/admin_password" 2>/dev/null \
+    || log_warning "Could not chown the generated secrets to the grafana user; the terminal may not be able to read ${SECRETS_DIR}/admin_password back."
 SECRET_KEY="$(cat "$SECRETS_DIR/secret_key")"
 ADMIN_PASSWORD="$(cat "$SECRETS_DIR/admin_password")"
 
@@ -125,7 +196,7 @@ fi
 log_info "Roles: ${ADMIN_COUNT} administrator(s), default role for everyone else: ${DEFAULT_ROLE}."
 
 # --- Plugins: catalogue ids and hash-checked URLs into /data/plugins -----
-UNSIGNED="trooperthorn-swis-datasource"
+UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource,trooperthorn-musicassistant-datasource,trooperthorn-unifinetwork-datasource,trooperthorn-unifiprotect-datasource,trooperthorn-homeassistant-datasource,trooperthorn-hasoc-datasource"
 while IFS= read -r spec; do
     [ -n "$spec" ] || continue
     id="${spec%%@*}"
@@ -170,7 +241,8 @@ for ((i = 0; i < CUSTOM_COUNT; i++)); do
             fi
             if [ -n "$src" ] && [ -f "$src/plugin.json" ]; then
                 mv "$src" "/data/plugins/${name}"
-                chown -R "$GRAFANA_UID:$GRAFANA_GID" "/data/plugins/${name}"
+                chown -R "$GRAFANA_UID:$GRAFANA_GID" "/data/plugins/${name}" 2>/dev/null \
+                    || log_warning "Could not chown custom plugin ${name} to the grafana user; it may fail to load."
                 log_info "Installed custom plugin ${name} (sha256 verified)."
             else
                 log_error "Custom plugin ${name}: no plugin.json in the zip; not installed."
@@ -186,7 +258,8 @@ done
 
 # --- Render the configuration --------------------------------------------
 ALLOW_EMBEDDING="$(config_value 'allow_embedding' 'false')"
-LOG_LEVEL="$(config_value 'log_level' 'info')"
+# LOG_LEVEL was already read above, right after the options file was found,
+# so log_debug works from the very first thing that can go wrong.
 TERMINAL_ENABLED="$(config_value 'terminal_enabled' 'false')"
 TERMINAL_FLAG=0; [ "$TERMINAL_ENABLED" = "true" ] && TERMINAL_FLAG=1
 
@@ -206,6 +279,124 @@ render() {
 chown "$GRAFANA_UID:$GRAFANA_GID" "$RUN_DIR/grafana.ini"
 render /etc/nginx/nginx.conf "$RUN_DIR/nginx.conf"
 chmod 0644 "$RUN_DIR/nginx.conf"
+
+# --- Technitium DNS data source provisioning -------------------------------
+# Both options must be set or the bundled data source is left unprovisioned;
+# clearing either one removes the file so Grafana deprovisions it too.
+TECHNITIUM_PROVISIONING="/data/provisioning/datasources/technitium.yaml"
+TECHNITIUM_URL="$(config_value 'technitium_url' '')"
+TECHNITIUM_API_TOKEN="$(config_value 'technitium_api_token' '')"
+if [ -n "$TECHNITIUM_URL" ] && [ -n "$TECHNITIUM_API_TOKEN" ]; then
+    ( umask 077
+      sed -e "s|%%technitium_url%%|$(sed_escape "$TECHNITIUM_URL")|g" \
+          -e "s|%%technitium_api_token%%|$(sed_escape "$TECHNITIUM_API_TOKEN")|g" \
+          /etc/grafana/provisioning-datasources/technitium.yaml.template > "$TECHNITIUM_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$TECHNITIUM_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Technitium provisioning file to the grafana user."
+    log_info "Provisioned the Technitium DNS data source (${TECHNITIUM_URL})."
+else
+    rm -f "$TECHNITIUM_PROVISIONING"
+fi
+
+# --- Music Assistant data source provisioning ------------------------------
+# Both options must be set or the bundled data source is left unprovisioned;
+# clearing either one removes the file so Grafana deprovisions it too.
+MUSICASSISTANT_PROVISIONING="/data/provisioning/datasources/musicassistant.yaml"
+MUSICASSISTANT_URL="$(config_value 'musicassistant_url' '')"
+MUSICASSISTANT_API_TOKEN="$(config_value 'musicassistant_api_token' '')"
+if [ -n "$MUSICASSISTANT_URL" ] && [ -n "$MUSICASSISTANT_API_TOKEN" ]; then
+    ( umask 077
+      sed -e "s|%%musicassistant_url%%|$(sed_escape "$MUSICASSISTANT_URL")|g" \
+          -e "s|%%musicassistant_api_token%%|$(sed_escape "$MUSICASSISTANT_API_TOKEN")|g" \
+          /etc/grafana/provisioning-datasources/musicassistant.yaml.template > "$MUSICASSISTANT_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$MUSICASSISTANT_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Music Assistant provisioning file to the grafana user."
+    log_info "Provisioned the Music Assistant data source (${MUSICASSISTANT_URL})."
+else
+    rm -f "$MUSICASSISTANT_PROVISIONING"
+fi
+
+# --- Unifi Network data source provisioning --------------------------------
+# Both host and api key must be set or the bundled data source is left
+# unprovisioned; clearing either one removes the file so Grafana
+# deprovisions it too.
+UNIFI_NETWORK_PROVISIONING="/data/provisioning/datasources/unifinetwork.yaml"
+UNIFI_NETWORK_HOST="$(config_value 'unifi_network_host' '')"
+UNIFI_NETWORK_API_KEY="$(config_value 'unifi_network_api_key' '')"
+UNIFI_NETWORK_VERIFY_SSL="$(config_value 'unifi_network_verify_ssl' 'false')"
+if [ -n "$UNIFI_NETWORK_HOST" ] && [ -n "$UNIFI_NETWORK_API_KEY" ]; then
+    ( umask 077
+      sed -e "s|%%unifi_network_host%%|$(sed_escape "$UNIFI_NETWORK_HOST")|g" \
+          -e "s|%%unifi_network_api_key%%|$(sed_escape "$UNIFI_NETWORK_API_KEY")|g" \
+          -e "s|%%unifi_network_verify_ssl%%|$(sed_escape "$UNIFI_NETWORK_VERIFY_SSL")|g" \
+          /etc/grafana/provisioning-datasources/unifinetwork.yaml.template > "$UNIFI_NETWORK_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$UNIFI_NETWORK_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Unifi Network provisioning file to the grafana user."
+    log_info "Provisioned the Unifi Network data source (${UNIFI_NETWORK_HOST})."
+else
+    rm -f "$UNIFI_NETWORK_PROVISIONING"
+fi
+
+# --- Unifi Protect data source provisioning --------------------------------
+# Both host and api key must be set or the bundled data source is left
+# unprovisioned; clearing either one removes the file so Grafana
+# deprovisions it too.
+UNIFI_PROTECT_PROVISIONING="/data/provisioning/datasources/unifiprotect.yaml"
+UNIFI_PROTECT_HOST="$(config_value 'unifi_protect_host' '')"
+UNIFI_PROTECT_API_KEY="$(config_value 'unifi_protect_api_key' '')"
+UNIFI_PROTECT_VERIFY_SSL="$(config_value 'unifi_protect_verify_ssl' 'false')"
+if [ -n "$UNIFI_PROTECT_HOST" ] && [ -n "$UNIFI_PROTECT_API_KEY" ]; then
+    ( umask 077
+      sed -e "s|%%unifi_protect_host%%|$(sed_escape "$UNIFI_PROTECT_HOST")|g" \
+          -e "s|%%unifi_protect_api_key%%|$(sed_escape "$UNIFI_PROTECT_API_KEY")|g" \
+          -e "s|%%unifi_protect_verify_ssl%%|$(sed_escape "$UNIFI_PROTECT_VERIFY_SSL")|g" \
+          /etc/grafana/provisioning-datasources/unifiprotect.yaml.template > "$UNIFI_PROTECT_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$UNIFI_PROTECT_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Unifi Protect provisioning file to the grafana user."
+    log_info "Provisioned the Unifi Protect data source (${UNIFI_PROTECT_HOST})."
+else
+    rm -f "$UNIFI_PROTECT_PROVISIONING"
+fi
+
+# --- Home Assistant data source provisioning -------------------------------
+# Both options must be set or the bundled data source is left unprovisioned;
+# clearing either one removes the file so Grafana deprovisions it too.
+HOMEASSISTANT_PROVISIONING="/data/provisioning/datasources/homeassistant.yaml"
+HOMEASSISTANT_URL="$(config_value 'homeassistant_url' '')"
+HOMEASSISTANT_ACCESS_TOKEN="$(config_value 'homeassistant_access_token' '')"
+HOMEASSISTANT_VERIFY_SSL="$(config_value 'homeassistant_verify_ssl' 'false')"
+if [ -n "$HOMEASSISTANT_URL" ] && [ -n "$HOMEASSISTANT_ACCESS_TOKEN" ]; then
+    ( umask 077
+      sed -e "s|%%homeassistant_url%%|$(sed_escape "$HOMEASSISTANT_URL")|g" \
+          -e "s|%%homeassistant_access_token%%|$(sed_escape "$HOMEASSISTANT_ACCESS_TOKEN")|g" \
+          -e "s|%%homeassistant_verify_ssl%%|$(sed_escape "$HOMEASSISTANT_VERIFY_SSL")|g" \
+          /etc/grafana/provisioning-datasources/homeassistant.yaml.template > "$HOMEASSISTANT_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$HOMEASSISTANT_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Home Assistant provisioning file to the grafana user."
+    log_info "Provisioned the Home Assistant data source (${HOMEASSISTANT_URL})."
+else
+    rm -f "$HOMEASSISTANT_PROVISIONING"
+fi
+
+# --- HA SOC data source provisioning ----------------------------------------
+# Both options must be set or the bundled data source is left unprovisioned;
+# clearing either one removes the file so Grafana deprovisions it too.
+HASOC_PROVISIONING="/data/provisioning/datasources/hasoc.yaml"
+HASOC_URL="$(config_value 'hasoc_url' '')"
+HASOC_ACCESS_TOKEN="$(config_value 'hasoc_access_token' '')"
+HASOC_VERIFY_SSL="$(config_value 'hasoc_verify_ssl' 'false')"
+if [ -n "$HASOC_URL" ] && [ -n "$HASOC_ACCESS_TOKEN" ]; then
+    ( umask 077
+      sed -e "s|%%hasoc_url%%|$(sed_escape "$HASOC_URL")|g" \
+          -e "s|%%hasoc_access_token%%|$(sed_escape "$HASOC_ACCESS_TOKEN")|g" \
+          -e "s|%%hasoc_verify_ssl%%|$(sed_escape "$HASOC_VERIFY_SSL")|g" \
+          /etc/grafana/provisioning-datasources/hasoc.yaml.template > "$HASOC_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$HASOC_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the HA SOC provisioning file to the grafana user."
+    log_info "Provisioned the HA SOC data source (${HASOC_URL})."
+else
+    rm -f "$HASOC_PROVISIONING"
+fi
 
 # --- Access log rotation ---------------------------------------------------
 RETENTION="$(config_value 'access_log_retention_days' '90')"

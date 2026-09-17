@@ -1,0 +1,17 @@
+# Rendered by run.sh into /data/provisioning/datasources/unifinetwork.yaml
+# only when both unifi_network_host and unifi_network_api_key are set;
+# removed again if either option is cleared, so Grafana deprovisions it too.
+apiVersion: 1
+
+datasources:
+  - name: "Unifi Network"
+    type: "trooperthorn-unifinetwork-datasource"
+    access: proxy
+    orgId: 1
+    version: 1
+    editable: false
+    jsonData:
+      host: "%%unifi_network_host%%"
+      verifySSL: %%unifi_network_verify_ssl%%
+    secureJsonData:
+      apiKey: "%%unifi_network_api_key%%"

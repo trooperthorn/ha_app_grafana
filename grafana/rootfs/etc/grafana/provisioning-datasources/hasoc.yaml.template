@@ -1,0 +1,17 @@
+# Rendered by run.sh into /data/provisioning/datasources/hasoc.yaml only
+# when both hasoc_url and hasoc_access_token are set; removed again if
+# either option is cleared, so Grafana deprovisions it too.
+apiVersion: 1
+
+datasources:
+  - name: "HA SOC"
+    type: "trooperthorn-hasoc-datasource"
+    access: proxy
+    orgId: 1
+    version: 1
+    editable: false
+    jsonData:
+      url: "%%hasoc_url%%"
+      verifySSL: %%hasoc_verify_ssl%%
+    secureJsonData:
+      accessToken: "%%hasoc_access_token%%"

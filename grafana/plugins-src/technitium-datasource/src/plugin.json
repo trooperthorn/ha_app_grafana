@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "Technitium DNS",
+  "id": "trooperthorn-technitiumdns-datasource",
+  "metrics": true,
+  "backend": true,
+  "executable": "gpx_technitium_dns",
+  "info": {
+    "description": "Query volume, response totals, and top clients/domains/blocked-domains from a Technitium DNS Server's dashboard stats API.",
+    "author": {
+      "name": "Trooperthorn"
+    },
+    "keywords": ["datasource", "dns", "technitium"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [],
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=12.3.0",
+    "plugins": []
+  }
+}

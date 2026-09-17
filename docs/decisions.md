@@ -109,6 +109,124 @@ test green: the eleven commits under `apps/ha_app_grafana/` became this
 repository's history, on top of the initial commit that carries the MIT
 license. The staged copy was removed from OrionGuides.
 
+## 2026-09-17: Technitium DNS plugin sourced in this repository, not a pinned external commit
+
+The SWIS plugin is built from a pinned commit of `SolarWinds_OrionGuides`
+because that plugin's source already lives there, developed alongside the
+schema documentation it depends on. No equivalent repository exists for a
+Technitium DNS data source, so its source lives directly in this
+repository at `grafana/plugins-src/technitium-datasource` and the
+Dockerfile builds it with `COPY` instead of a `git fetch` to a commit. An
+image build is still the whole provenance; the difference is that this
+repository's own history is the pin, rather than another repository's
+commit hash. Scaffolded with `@grafana/create-plugin` (Go backend using
+`grafana-plugin-sdk-go`, calling only `GET /api/dashboard/stats/get` with a
+non-expiring API token) and trimmed of the generator's own CI, Docker dev
+environment and Playwright e2e scaffolding, none of which this repository
+needs a second copy of.
+
+## 2026-09-17: Music Assistant data source queries its HTTP endpoint, not its WebSocket
+
+Music Assistant's primary API is a WebSocket (`/ws`) using a
+`{message_id, command, args}` request and `{message_id, result}` /
+`{message_id, error_code, details}` response envelope (see
+`music_assistant_models.api` in the `music-assistant/models` repository).
+The same webserver also exposes `POST /api` with the identical envelope
+over plain HTTP, documented in
+`music_assistant/controllers/webserver/README.md` in the
+`music-assistant/server` repository. A Grafana backend plugin issues one
+request per query and does not benefit from a persistent connection, so
+this plugin uses the HTTP form and authenticates with a long-lived token
+(`auth/token/create`), never the WebSocket's session-based `auth` command.
+It calls only `players/all`; Music Assistant has no documented
+library-count/stats command as of this writing, so this plugin does not
+claim one.
+
+## 2026-09-17: Unifi Network plugin's contract taken from `trooperthorn/ha_int_soc`
+
+The owner asked that this plugin reference the Unifi Network and Unifi
+Protect work already done in his `ha_int_soc` (HA SOC) repository rather
+than re-deriving the API from scratch. HA SOC's `docs/UNIFI-LOCAL-API-CONTRACT.md`
+records a verification pass against Ubiquiti's own versioned Network
+10.4.57 and Protect 7.2.105 OpenAPI/Postman artifacts (checksummed) and a
+live controller, corrected a wrong assumption (ACL rules and Firewall
+Policies are separate resources; a live controller returned an empty ACL
+list while the real rules lived under Firewall Policies), and recorded
+which field mappings are verified versus still on its own backlog.
+
+This plugin reuses that contract directly: base path
+`/proxy/network/integration/v1`, `X-API-KEY` header, no redirects followed,
+an 8 MB response cap, `/sites` then `/sites/{id}/clients` and
+`/sites/{id}/devices`, the `{"data": [...]}` offset/limit pagination
+envelope (falling back to a bare list), and the same candidate-key lists
+`unifi.py`'s `_normalize_client`/`_normalize_device` use for fields that
+vary across firmwares (name, VLAN, SSID, uptime, bandwidth). It reuses
+`_derive_wan`'s gateway-selection heuristic and its top-level
+uplink/wan/wan1/wan2/internet node search, but not the fuller
+`interfaces`/port-array shapes HA SOC's own contract doc still lists as
+unverified. It does not port ACL rules, Firewall Policies, or Wi-Fi
+broadcast configuration: those are HA SOC's security-audit surface, not a
+monitoring dashboard's, and this plugin does not claim to audit anything.
+Read-only by construction: it uses only `GET` routes and never HA SOC's
+write-back path (`PUT` to disable a policy or rule), which this plugin has
+no reason to carry.
+
+## 2026-09-17: Unifi Protect plugin has a cameras series and no events series
+
+Built the same way as Unifi Network: base path
+`/proxy/protect/integration/v1`, `X-API-KEY` header, `GET /cameras`
+(Protect's own contract makes this an unpaginated array, unlike Network's
+offset/limit collections, so no pagination helper was carried over), and
+the same `_normalize_camera` candidate-key fields (`isRecording` as a
+plain boolean on some firmwares, `recordingSettings.mode` on others; both
+covered by this plugin's own tests).
+
+Deliberately no events/detections series. HA SOC's contract verification
+(`docs/UNIFI-LOCAL-API-CONTRACT.md`) searched every documented path in
+Protect 7.2.105's OpenAPI spec and found no historical `/events`,
+`/detections`, or `/alarms` route; live events exist only as the
+persistent WebSocket subscription `GET /subscribe/events`, which HA SOC
+itself works around by reading Home Assistant's loaded `unifiprotect`
+integration's in-memory buffer rather than calling Protect's API for
+history. A Grafana backend plugin answers one HTTP request per query and
+holds no state between them: it has no route to poll for history and no
+honest way to hold a persistent subscription open between queries either,
+so offering an events series would mean fabricating data. This plugin
+says so in its README rather than shipping a series that can't be real.
+
+## 2026-09-17: /data ownership failure degrades instead of crash-looping
+
+Reported: `chown "$GRAFANA_UID:$GRAFANA_GID" /data` failing with "Permission
+denied" under `set -o errexit`, so `run.sh` exited immediately with nothing
+but that one line, and the Supervisor (or `docker run --restart`)
+restarted it in a tight loop that reproduced the same bare error forever.
+The Supervisor's own `/data` mount is fresh and root-owned, so this
+chown never used to fail there; it fails outside the Supervisor when
+`/data` is a bind mount from a Docker/Podman mode or filesystem that
+refuses ownership changes altogether (rootless Docker/Podman without an
+idmapped bind mount, some network or virtualized filesystem shares).
+
+`run.sh`'s `chown_or_verify` now treats that refusal as recoverable: if the
+path is already writable and executable by uid 472 once checked directly,
+it logs a warning and continues without changing ownership; only if the
+path is genuinely unusable by that uid does it exit, once, with a
+diagnostic naming the likely cause and the host-side fixes (chown the host
+path, use a named volume instead of a bind mount, or an idmapped mount).
+See docs/operations.md.
+
+The owner was running with `log_level: debug` when this happened and asked
+that the launcher use that setting for its own diagnostics, not only
+Grafana's. `run.sh` now reads `log_level` immediately after finding
+`options.json`, before anything else can fail, and a new `log_debug`/
+`debug_dump_path` pair (gated on `log_level: debug`, independent of
+Grafana's own `[log]` level) prints `id`, the failing path's and its
+parent's owner/mode, its mount entry (source, filesystem, options), and
+this process's effective capabilities whenever `chown_or_verify` cannot
+chown a path, whether or not the fallback recovers it. This is what turns
+"a mount refused chown" into which of rootless Docker/Podman, a
+capability actually dropped, or a network/virtualized filesystem it was,
+without asking the reporter to attach a debugger.
+
 ## 2026-09-16: Grafana's own binaries excluded from the scan by path
 
 The first image scan failed on High advisories compiled into Grafana's
@@ -125,3 +243,39 @@ inside the gate it moved from Grafana's `plugins-bundled` to
 `/opt/grafana-app/plugins-bundled`, which `grafana.ini` names as the
 bundled plugin path. `apt-get upgrade` was added to the build at the same
 time so glibc's pending fixes land.
+
+## 2026-09-17: Home Assistant and HA SOC plugins reuse the same WebSocket client shape
+
+The owner asked to also cover Home Assistant itself and HA SOC
+(`trooperthorn/ha_int_soc`). Neither has a REST surface that answers this
+app's questions: Home Assistant's long-term statistics
+(`recorder/statistics_during_period`) and system health
+(`system_health/info`) are WebSocket-only commands with no REST
+equivalent (its REST API covers current entity state and raw history,
+which this repository does not duplicate), and HA SOC has no HTTP view of
+its own at all - every `ha_soc/*` command it registers rides on that same
+Home Assistant core WebSocket API. So both new plugins are WebSocket
+clients (`gorilla/websocket`, the first dependency in this repository not
+already pulled in by `grafana-plugin-sdk-go`), completing Home
+Assistant's own documented `auth_required`/`auth`/`auth_ok` handshake
+with a long-lived access token per query, the same one the frontend and
+every other HA integration uses.
+
+`system_health/info` does not answer with the plain
+`{"success":true,"result":...}` envelope every other command here uses:
+it confirms the subscription with a bare success result, then streams
+`initial`/`update`/`finish` events on the same connection, per Home
+Assistant core's `homeassistant/components/system_health/__init__.py`.
+The Home Assistant plugin's client reads that sequence to completion
+before returning, since a Grafana backend plugin answers one request per
+query and has nothing to gain from leaving the subscription open.
+
+HA SOC's own `require_soc_access` decorator (`websocket_api.py`) rejects
+any non-admin token, and by default (`access_level: owner_only`) accepts
+only the account owner's; the HA SOC plugin's docs say this plainly
+rather than let a confusing "unauthorized" surface with no explanation.
+Its `posture`, `risk`, and `audit` series and their field names are taken
+directly from `risk.py`'s `RiskEngine._compute_user_risk` /
+`async_compute_posture` and `audit.py`'s `AuditLog.async_log` record
+shape - the same "read the real source, do not guess the schema" standard
+every other bundled plugin here was held to.

@@ -1,0 +1,16 @@
+# Rendered by run.sh into /data/provisioning/datasources/technitium.yaml only
+# when both technitium_url and technitium_api_token are set; removed again
+# if either option is cleared, so Grafana deprovisions it on the next start.
+apiVersion: 1
+
+datasources:
+  - name: "Technitium DNS"
+    type: "trooperthorn-technitiumdns-datasource"
+    access: proxy
+    orgId: 1
+    version: 1
+    editable: false
+    jsonData:
+      url: "%%technitium_url%%"
+    secureJsonData:
+      apiToken: "%%technitium_api_token%%"

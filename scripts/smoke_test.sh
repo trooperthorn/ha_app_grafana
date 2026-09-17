@@ -83,6 +83,106 @@ if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-swis-datasource" | grep -qi 
 fi
 echo "  ok: plugin registered"
 
+echo "== bundled Technitium DNS plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-technitiumdns-datasource/settings > "$WORK/technitium_plugin.json" || true
+grep -q '"id":"trooperthorn-technitiumdns-datasource"' "$WORK/technitium_plugin.json" || fail "plugin settings not served: $(cat "$WORK/technitium_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/technitium_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/technitium_plugin.json")"
+# Same proof as SWIS: point it at a host that cannot answer and let the Go
+# backend's own health check fail, which no frontend-only plugin could do.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"technitium-smoke","type":"trooperthorn-technitiumdns-datasource","access":"proxy","uid":"technitium-smoke","jsonData":{"url":"http://technitium.invalid:5380"},"secureJsonData":{"apiToken":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/technitium_ds.json" || true
+grep -q '"uid":"technitium-smoke"' "$WORK/technitium_ds.json" || fail "could not create a Technitium data source: $(cat "$WORK/technitium_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/technitium-smoke/health > "$WORK/technitium_health.json" || true
+grep -q "calling technitium" "$WORK/technitium_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/technitium_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-technitiumdns-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled Technitium plugin's signature"
+fi
+echo "  ok: plugin registered"
+
+echo "== bundled Music Assistant plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-musicassistant-datasource/settings > "$WORK/ma_plugin.json" || true
+grep -q '"id":"trooperthorn-musicassistant-datasource"' "$WORK/ma_plugin.json" || fail "plugin settings not served: $(cat "$WORK/ma_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/ma_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/ma_plugin.json")"
+# Same proof as SWIS/Technitium: point it at a host that cannot answer and
+# let the Go backend's own health check fail.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"ma-smoke","type":"trooperthorn-musicassistant-datasource","access":"proxy","uid":"ma-smoke","jsonData":{"url":"http://musicassistant.invalid:8095"},"secureJsonData":{"apiToken":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/ma_ds.json" || true
+grep -q '"uid":"ma-smoke"' "$WORK/ma_ds.json" || fail "could not create a Music Assistant data source: $(cat "$WORK/ma_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/ma-smoke/health > "$WORK/ma_health.json" || true
+grep -q "calling music assistant" "$WORK/ma_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/ma_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-musicassistant-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled Music Assistant plugin's signature"
+fi
+echo "  ok: plugin registered"
+
+echo "== bundled Unifi Network plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-unifinetwork-datasource/settings > "$WORK/un_plugin.json" || true
+grep -q '"id":"trooperthorn-unifinetwork-datasource"' "$WORK/un_plugin.json" || fail "plugin settings not served: $(cat "$WORK/un_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/un_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/un_plugin.json")"
+# Same proof as the other bundled plugins: point it at a host that cannot
+# answer and let the Go backend's own health check fail.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"un-smoke","type":"trooperthorn-unifinetwork-datasource","access":"proxy","uid":"un-smoke","jsonData":{"host":"unifinetwork.invalid","verifySSL":false},"secureJsonData":{"apiKey":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/un_ds.json" || true
+grep -q '"uid":"un-smoke"' "$WORK/un_ds.json" || fail "could not create a Unifi Network data source: $(cat "$WORK/un_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/un-smoke/health > "$WORK/un_health.json" || true
+grep -q "calling unifi network" "$WORK/un_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/un_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-unifinetwork-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled Unifi Network plugin's signature"
+fi
+echo "  ok: plugin registered"
+
+echo "== bundled Unifi Protect plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-unifiprotect-datasource/settings > "$WORK/up_plugin.json" || true
+grep -q '"id":"trooperthorn-unifiprotect-datasource"' "$WORK/up_plugin.json" || fail "plugin settings not served: $(cat "$WORK/up_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/up_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/up_plugin.json")"
+# Same proof as the other bundled plugins: point it at a host that cannot
+# answer and let the Go backend's own health check fail.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"up-smoke","type":"trooperthorn-unifiprotect-datasource","access":"proxy","uid":"up-smoke","jsonData":{"host":"unifiprotect.invalid","verifySSL":false},"secureJsonData":{"apiKey":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/up_ds.json" || true
+grep -q '"uid":"up-smoke"' "$WORK/up_ds.json" || fail "could not create a Unifi Protect data source: $(cat "$WORK/up_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/up-smoke/health > "$WORK/up_health.json" || true
+grep -q "calling unifi protect" "$WORK/up_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/up_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-unifiprotect-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled Unifi Protect plugin's signature"
+fi
+echo "  ok: plugin registered"
+
+echo "== bundled Home Assistant plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-homeassistant-datasource/settings > "$WORK/ha_plugin.json" || true
+grep -q '"id":"trooperthorn-homeassistant-datasource"' "$WORK/ha_plugin.json" || fail "plugin settings not served: $(cat "$WORK/ha_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/ha_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/ha_plugin.json")"
+# Same proof as the other bundled plugins: point it at a host that cannot
+# answer and let the Go backend's own health check fail.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"ha-smoke","type":"trooperthorn-homeassistant-datasource","access":"proxy","uid":"ha-smoke","jsonData":{"url":"http://homeassistant.invalid:8123","verifySSL":false},"secureJsonData":{"accessToken":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/ha_ds.json" || true
+grep -q '"uid":"ha-smoke"' "$WORK/ha_ds.json" || fail "could not create a Home Assistant data source: $(cat "$WORK/ha_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/ha-smoke/health > "$WORK/ha_health.json" || true
+grep -q "connecting to home assistant" "$WORK/ha_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/ha_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-homeassistant-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled Home Assistant plugin's signature"
+fi
+echo "  ok: plugin registered"
+
+echo "== bundled HA SOC plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-hasoc-datasource/settings > "$WORK/soc_plugin.json" || true
+grep -q '"id":"trooperthorn-hasoc-datasource"' "$WORK/soc_plugin.json" || fail "plugin settings not served: $(cat "$WORK/soc_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/soc_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/soc_plugin.json")"
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"soc-smoke","type":"trooperthorn-hasoc-datasource","access":"proxy","uid":"soc-smoke","jsonData":{"url":"http://homeassistant.invalid:8123","verifySSL":false},"secureJsonData":{"accessToken":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/soc_ds.json" || true
+grep -q '"uid":"soc-smoke"' "$WORK/soc_ds.json" || fail "could not create an HA SOC data source: $(cat "$WORK/soc_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/soc-smoke/health > "$WORK/soc_health.json" || true
+grep -q "connecting to home assistant" "$WORK/soc_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/soc_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-hasoc-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled HA SOC plugin's signature"
+fi
+echo "  ok: plugin registered"
+
 echo "== terminal gate"
 expect 403 -H 'X-Remote-User-Name: ed' http://127.0.0.1:1337/terminal/
 expect 200 -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/terminal/
@@ -115,6 +215,12 @@ echo "  ok"
 
 echo "== bundled plugin path"
 docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/gpx_swis_linux_amd64 || fail "SWIS backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource/gpx_technitium_dns_linux_amd64 || fail "Technitium backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-musicassistant-datasource/gpx_music_assistant_linux_amd64 || fail "Music Assistant backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-unifinetwork-datasource/gpx_unifi_network_linux_amd64 || fail "Unifi Network backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-unifiprotect-datasource/gpx_unifi_protect_linux_amd64 || fail "Unifi Protect backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-homeassistant-datasource/gpx_home_assistant_linux_amd64 || fail "Home Assistant backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-hasoc-datasource/gpx_ha_soc_linux_amd64 || fail "HA SOC backend is not under /opt/grafana-app"
 echo "  Grafana's own plugins-bundled directory holds: $(docker exec "$NAME" ls /usr/share/grafana/plugins-bundled 2>/dev/null || echo '(absent)')"
 
 echo "== state lives under /data, nothing downloaded"
