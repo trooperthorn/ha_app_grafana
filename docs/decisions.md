@@ -387,3 +387,51 @@ temporary security reduction needed at all. `docs/operations.md`'s
 "AppArmor denials" section and `docs/security.md`'s profile section now
 lead with that UI path (checked under enforce mode) and keep `journalctl`
 only as the equivalent for an install with host shell access.
+
+## 2026-09-17: the "unable to open database file (14)" crash was `wal = true`, not AppArmor
+
+The AppArmor complain-mode detour above turned out to be unnecessary in
+a second way: it was never confirmed to be the actual cause, only a
+timing coincidence (it changed in the same round of fixes). Reading
+Grafana 13.2.2's own source settled it. `pkg/storage/unified/sql/db/
+dbimpl/dbimpl.go`'s `newResourceDBProvider`, used by Grafana's unified
+storage subsystem, calls `sqlstore.NewDatabaseConfig` and `getEngine`
+itself whenever `[database] type` is set (true here) - a **second,
+independent** `*xorm.Engine` with its own connection pool, opened
+against the exact same `grafana.db` the main store already connected to,
+not a shared connection. `grafana.ini.template` set `wal = true`, which
+is not Grafana's own default (`conf/defaults.ini` in the Grafana 13.2.2
+source ships `wal = false`) and had no documented reason in this
+repository - it looks like an unexamined "WAL is generally a good idea"
+default from whenever the template was first written, not a considered
+tradeoff. WAL mode requires every connection touching a database to
+coordinate through a shared-memory index file (`<db>-shm`), and multiple
+Grafana users have reported this exact error text and code from exactly
+that combination - a second SQLite connection pool plus WAL - independent
+of this repository (Grafana Labs community forum thread "Problems with
+error checking db: ... unable to open database file: out of memory (14)"
+among others found searching for the error verbatim; `community.grafana.com`
+itself is blocked by this development environment's network egress
+policy, so its detail could not be read directly, but multiple search
+results independently describe the same WAL-plus-shared-memory-file
+mechanism as the established cause of this failure family).
+
+`wal` is now `false`, which is simply Grafana's own upstream default,
+removing the two-pool WAL coordination requirement rather than trying to
+make it work under AppArmor. Since "SQLite keeps the journal mode in the
+database file, so a database that was once opened with WAL stays in WAL
+until we ask for something else" (a comment in Grafana's own
+`buildConnectionString`), an existing installation's `grafana.db` (like
+the one that hit this crash) does not need a manual migration: Grafana's
+own connection string building appends `_journal_mode=DELETE` when `wal`
+is false, which SQLite executes as a live mode conversion on the next
+successful connection.
+
+This was not verified end to end against a live Supervisor - this
+development environment has no Docker daemon and no AppArmor kernel
+module, so neither the crash nor the fix can be reproduced here, only
+reasoned from Grafana's own source and corroborated by independent
+external reports of the same error. If `wal = false` does not resolve
+the crash, the next step is reading the denial (or absence of one) from
+Settings > System > Logs > Host per the entry above, which remains valid
+and unaffected by this change.

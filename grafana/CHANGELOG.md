@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026.09.17.3
+
+Fixed: Grafana itself was exiting with `Error: ✗ unable to open database
+file (14)` on every start under the Supervisor, right after the main
+database connected successfully. `grafana.ini.template` set `wal = true`,
+overriding Grafana's own upstream default (`false`) with no documented
+reason in this repository. Grafana 13's unified storage subsystem opens a
+second, independent SQLite connection pool to the same `grafana.db`
+rather than reusing the first one, and WAL mode requires every connection
+to coordinate through a shared-memory index file - a documented source of
+exactly this error and error code once a second pool is involved. `wal`
+is now `false`, matching Grafana's own default; SQLite converts an
+existing WAL-mode database file back to a rollback journal automatically
+on the next successful connection, so no manual migration is needed. See
+docs/decisions.md.
+
 ## 2026.09.17.2
 
 Fixed: the bundled AppArmor profile granted only read on the `/data` and
