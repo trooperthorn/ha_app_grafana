@@ -26,6 +26,10 @@
 #   grafana/plugins-src/unifi-network-datasource, for the same reason.
 #   the Unifi Protect data source plugin, built here from
 #   grafana/plugins-src/unifi-protect-datasource, for the same reason.
+#   the Home Assistant data source plugin, built here from
+#   grafana/plugins-src/homeassistant-datasource, for the same reason.
+#   the HA SOC data source plugin, built here from
+#   grafana/plugins-src/hasoc-datasource, for the same reason.
 #
 # The Ubuntu variant rather than Alpine is deliberate: nginx-light and ttyd
 # are Ubuntu packages (nginx-light is the same lean nginx the Technitium DNS
@@ -140,7 +144,47 @@ COPY --from=unifiprotect-backend /src /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
-# ---- Stage 11: the app image.
+# ---- Stage 11: the Home Assistant data source backend, from this repo's own source.
+FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS homeassistant-backend
+ARG BUILD_ARCH
+COPY plugins-src/homeassistant-datasource /src
+WORKDIR /src
+RUN set -eu; \
+    case "${BUILD_ARCH:-$(uname -m)}" in \
+        amd64|x86_64) goarch=amd64 ;; \
+        aarch64|arm64) goarch=arm64 ;; \
+        *) echo "unsupported architecture ${BUILD_ARCH:-$(uname -m)}" >&2; exit 1 ;; \
+    esac; \
+    CGO_ENABLED=0 GOOS=linux GOARCH="${goarch}" \
+        go build -trimpath -ldflags="-s -w" -o "/out/gpx_home_assistant_linux_${goarch}" ./pkg
+
+# ---- Stage 12: the Home Assistant plugin frontend bundle, from the same source.
+FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS homeassistant-frontend
+COPY --from=homeassistant-backend /src /src
+WORKDIR /src
+RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
+
+# ---- Stage 13: the HA SOC data source backend, from this repo's own source.
+FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS hasoc-backend
+ARG BUILD_ARCH
+COPY plugins-src/hasoc-datasource /src
+WORKDIR /src
+RUN set -eu; \
+    case "${BUILD_ARCH:-$(uname -m)}" in \
+        amd64|x86_64) goarch=amd64 ;; \
+        aarch64|arm64) goarch=arm64 ;; \
+        *) echo "unsupported architecture ${BUILD_ARCH:-$(uname -m)}" >&2; exit 1 ;; \
+    esac; \
+    CGO_ENABLED=0 GOOS=linux GOARCH="${goarch}" \
+        go build -trimpath -ldflags="-s -w" -o "/out/gpx_ha_soc_linux_${goarch}" ./pkg
+
+# ---- Stage 14: the HA SOC plugin frontend bundle, from the same source.
+FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS hasoc-frontend
+COPY --from=hasoc-backend /src /src
+WORKDIR /src
+RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
+
+# ---- Stage 15: the app image.
 FROM grafana/grafana:13.2.2-ubuntu@sha256:9a68a82ec38931e1baacee5d471cf74aa42565eb49554caa5290663529de6941
 
 USER root
@@ -186,11 +230,17 @@ COPY --from=unifinetwork-frontend /src/dist /opt/grafana-app/plugins-bundled/tro
 COPY --from=unifinetwork-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-unifinetwork-datasource/
 COPY --from=unifiprotect-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthorn-unifiprotect-datasource
 COPY --from=unifiprotect-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-unifiprotect-datasource/
+COPY --from=homeassistant-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthorn-homeassistant-datasource
+COPY --from=homeassistant-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-homeassistant-datasource/
+COPY --from=hasoc-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthorn-hasoc-datasource
+COPY --from=hasoc-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-hasoc-datasource/
 RUN chmod 0755 /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/gpx_swis_* \
         /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource/gpx_technitium_dns_* \
         /opt/grafana-app/plugins-bundled/trooperthorn-musicassistant-datasource/gpx_music_assistant_* \
         /opt/grafana-app/plugins-bundled/trooperthorn-unifinetwork-datasource/gpx_unifi_network_* \
         /opt/grafana-app/plugins-bundled/trooperthorn-unifiprotect-datasource/gpx_unifi_protect_* \
+        /opt/grafana-app/plugins-bundled/trooperthorn-homeassistant-datasource/gpx_home_assistant_* \
+        /opt/grafana-app/plugins-bundled/trooperthorn-hasoc-datasource/gpx_ha_soc_* \
     && chown -R root:root /opt/grafana-app
 
 COPY rootfs /
@@ -199,7 +249,9 @@ RUN chmod 0755 /run.sh /usr/local/bin/grafana_term_open \
         /etc/grafana/provisioning-datasources/technitium.yaml.template \
         /etc/grafana/provisioning-datasources/musicassistant.yaml.template \
         /etc/grafana/provisioning-datasources/unifiprotect.yaml.template \
-        /etc/grafana/provisioning-datasources/unifinetwork.yaml.template
+        /etc/grafana/provisioning-datasources/unifinetwork.yaml.template \
+        /etc/grafana/provisioning-datasources/homeassistant.yaml.template \
+        /etc/grafana/provisioning-datasources/hasoc.yaml.template
 
 ARG BUILD_VERSION
 ARG BUILD_ARCH

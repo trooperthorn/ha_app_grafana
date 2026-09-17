@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "HA SOC",
+  "id": "trooperthorn-hasoc-datasource",
+  "metrics": true,
+  "backend": true,
+  "executable": "gpx_ha_soc",
+  "info": {
+    "description": "Query HA SOC's security posture score, per-user risk, and tamper-evident audit log from Home Assistant's own WebSocket API.",
+    "author": {
+      "name": "Trooperthorn"
+    },
+    "keywords": ["datasource", "home assistant", "security", "ha soc"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [],
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=12.3.0",
+    "plugins": []
+  }
+}

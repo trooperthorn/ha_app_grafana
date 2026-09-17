@@ -70,6 +70,12 @@ options:
   unifi_protect_host: ""
   unifi_protect_api_key: ""
   unifi_protect_verify_ssl: false
+  homeassistant_url: ""
+  homeassistant_access_token: ""
+  homeassistant_verify_ssl: false
+  hasoc_url: ""
+  hasoc_access_token: ""
+  hasoc_verify_ssl: false
 
 schema:
   # Home Assistant usernames (the login name, as X-Remote-User-Name carries
@@ -121,3 +127,16 @@ schema:
   unifi_protect_host: str
   unifi_protect_api_key: password
   unifi_protect_verify_ssl: bool
+  # The bundled Home Assistant data source is provisioned automatically
+  # when both are set; it queries this app's own Home Assistant instance
+  # over its core WebSocket API (long-term statistics, system health).
+  homeassistant_url: str
+  homeassistant_access_token: password
+  homeassistant_verify_ssl: bool
+  # The bundled HA SOC data source is provisioned automatically when both
+  # are set; HA SOC has no API of its own, so this also targets the same
+  # Home Assistant instance's WebSocket API, with a token for an admin
+  # user (HA SOC's own access gate requires it, and by default the owner).
+  hasoc_url: str
+  hasoc_access_token: password
+  hasoc_verify_ssl: bool

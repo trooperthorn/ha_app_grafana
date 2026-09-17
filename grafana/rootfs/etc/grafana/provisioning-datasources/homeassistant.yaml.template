@@ -1,0 +1,17 @@
+# Rendered by run.sh into /data/provisioning/datasources/homeassistant.yaml
+# only when both homeassistant_url and homeassistant_access_token are set;
+# removed again if either option is cleared, so Grafana deprovisions it too.
+apiVersion: 1
+
+datasources:
+  - name: "Home Assistant"
+    type: "trooperthorn-homeassistant-datasource"
+    access: proxy
+    orgId: 1
+    version: 1
+    editable: false
+    jsonData:
+      url: "%%homeassistant_url%%"
+      verifySSL: %%homeassistant_verify_ssl%%
+    secureJsonData:
+      accessToken: "%%homeassistant_access_token%%"

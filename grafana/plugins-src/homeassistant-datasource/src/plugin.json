@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "Home Assistant",
+  "id": "trooperthorn-homeassistant-datasource",
+  "metrics": true,
+  "backend": true,
+  "executable": "gpx_home_assistant",
+  "info": {
+    "description": "Query long-term statistics and system health from a Home Assistant instance's own WebSocket API.",
+    "author": {
+      "name": "Trooperthorn"
+    },
+    "keywords": ["datasource", "home assistant", "statistics"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [],
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=12.3.0",
+    "plugins": []
+  }
+}

@@ -196,7 +196,7 @@ fi
 log_info "Roles: ${ADMIN_COUNT} administrator(s), default role for everyone else: ${DEFAULT_ROLE}."
 
 # --- Plugins: catalogue ids and hash-checked URLs into /data/plugins -----
-UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource,trooperthorn-musicassistant-datasource,trooperthorn-unifinetwork-datasource,trooperthorn-unifiprotect-datasource"
+UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource,trooperthorn-musicassistant-datasource,trooperthorn-unifinetwork-datasource,trooperthorn-unifiprotect-datasource,trooperthorn-homeassistant-datasource,trooperthorn-hasoc-datasource"
 while IFS= read -r spec; do
     [ -n "$spec" ] || continue
     id="${spec%%@*}"
@@ -356,6 +356,46 @@ if [ -n "$UNIFI_PROTECT_HOST" ] && [ -n "$UNIFI_PROTECT_API_KEY" ]; then
     log_info "Provisioned the Unifi Protect data source (${UNIFI_PROTECT_HOST})."
 else
     rm -f "$UNIFI_PROTECT_PROVISIONING"
+fi
+
+# --- Home Assistant data source provisioning -------------------------------
+# Both options must be set or the bundled data source is left unprovisioned;
+# clearing either one removes the file so Grafana deprovisions it too.
+HOMEASSISTANT_PROVISIONING="/data/provisioning/datasources/homeassistant.yaml"
+HOMEASSISTANT_URL="$(config_value 'homeassistant_url' '')"
+HOMEASSISTANT_ACCESS_TOKEN="$(config_value 'homeassistant_access_token' '')"
+HOMEASSISTANT_VERIFY_SSL="$(config_value 'homeassistant_verify_ssl' 'false')"
+if [ -n "$HOMEASSISTANT_URL" ] && [ -n "$HOMEASSISTANT_ACCESS_TOKEN" ]; then
+    ( umask 077
+      sed -e "s|%%homeassistant_url%%|$(sed_escape "$HOMEASSISTANT_URL")|g" \
+          -e "s|%%homeassistant_access_token%%|$(sed_escape "$HOMEASSISTANT_ACCESS_TOKEN")|g" \
+          -e "s|%%homeassistant_verify_ssl%%|$(sed_escape "$HOMEASSISTANT_VERIFY_SSL")|g" \
+          /etc/grafana/provisioning-datasources/homeassistant.yaml.template > "$HOMEASSISTANT_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$HOMEASSISTANT_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Home Assistant provisioning file to the grafana user."
+    log_info "Provisioned the Home Assistant data source (${HOMEASSISTANT_URL})."
+else
+    rm -f "$HOMEASSISTANT_PROVISIONING"
+fi
+
+# --- HA SOC data source provisioning ----------------------------------------
+# Both options must be set or the bundled data source is left unprovisioned;
+# clearing either one removes the file so Grafana deprovisions it too.
+HASOC_PROVISIONING="/data/provisioning/datasources/hasoc.yaml"
+HASOC_URL="$(config_value 'hasoc_url' '')"
+HASOC_ACCESS_TOKEN="$(config_value 'hasoc_access_token' '')"
+HASOC_VERIFY_SSL="$(config_value 'hasoc_verify_ssl' 'false')"
+if [ -n "$HASOC_URL" ] && [ -n "$HASOC_ACCESS_TOKEN" ]; then
+    ( umask 077
+      sed -e "s|%%hasoc_url%%|$(sed_escape "$HASOC_URL")|g" \
+          -e "s|%%hasoc_access_token%%|$(sed_escape "$HASOC_ACCESS_TOKEN")|g" \
+          -e "s|%%hasoc_verify_ssl%%|$(sed_escape "$HASOC_VERIFY_SSL")|g" \
+          /etc/grafana/provisioning-datasources/hasoc.yaml.template > "$HASOC_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$HASOC_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the HA SOC provisioning file to the grafana user."
+    log_info "Provisioned the HA SOC data source (${HASOC_URL})."
+else
+    rm -f "$HASOC_PROVISIONING"
 fi
 
 # --- Access log rotation ---------------------------------------------------

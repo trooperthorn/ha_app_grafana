@@ -40,6 +40,22 @@ offer. New options `unifi_protect_host`, `unifi_protect_api_key`, and
 `unifi_protect_verify_ssl` provision it automatically when host and key
 are both set.
 
+Added a Home Assistant data source: long-term statistics
+(`recorder/statistics_during_period`) and system health
+(`system_health/info`) over this instance's own core WebSocket API, since
+neither has a REST equivalent. New options `homeassistant_url`,
+`homeassistant_access_token`, and `homeassistant_verify_ssl` provision it
+automatically when both url and token are set.
+
+Added an HA SOC data source for
+[trooperthorn/ha_int_soc](https://github.com/trooperthorn/ha_int_soc)
+installs: the whole-install security posture score, per-user risk, and
+the tamper-evident audit log, read over the same Home Assistant WebSocket
+API (HA SOC has no API of its own). New options `hasoc_url`,
+`hasoc_access_token`, and `hasoc_verify_ssl` provision it automatically
+when both url and token are set; the token must belong to a Home
+Assistant admin user.
+
 ## 2026.09.16.1
 
 First release. Grafana 13.2.2 (OSS) behind Home Assistant Ingress only:

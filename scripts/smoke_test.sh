@@ -151,6 +151,38 @@ if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-unifiprotect-datasource" | g
 fi
 echo "  ok: plugin registered"
 
+echo "== bundled Home Assistant plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-homeassistant-datasource/settings > "$WORK/ha_plugin.json" || true
+grep -q '"id":"trooperthorn-homeassistant-datasource"' "$WORK/ha_plugin.json" || fail "plugin settings not served: $(cat "$WORK/ha_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/ha_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/ha_plugin.json")"
+# Same proof as the other bundled plugins: point it at a host that cannot
+# answer and let the Go backend's own health check fail.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"ha-smoke","type":"trooperthorn-homeassistant-datasource","access":"proxy","uid":"ha-smoke","jsonData":{"url":"http://homeassistant.invalid:8123","verifySSL":false},"secureJsonData":{"accessToken":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/ha_ds.json" || true
+grep -q '"uid":"ha-smoke"' "$WORK/ha_ds.json" || fail "could not create a Home Assistant data source: $(cat "$WORK/ha_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/ha-smoke/health > "$WORK/ha_health.json" || true
+grep -q "connecting to home assistant" "$WORK/ha_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/ha_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-homeassistant-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled Home Assistant plugin's signature"
+fi
+echo "  ok: plugin registered"
+
+echo "== bundled HA SOC plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-hasoc-datasource/settings > "$WORK/soc_plugin.json" || true
+grep -q '"id":"trooperthorn-hasoc-datasource"' "$WORK/soc_plugin.json" || fail "plugin settings not served: $(cat "$WORK/soc_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/soc_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/soc_plugin.json")"
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"soc-smoke","type":"trooperthorn-hasoc-datasource","access":"proxy","uid":"soc-smoke","jsonData":{"url":"http://homeassistant.invalid:8123","verifySSL":false},"secureJsonData":{"accessToken":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/soc_ds.json" || true
+grep -q '"uid":"soc-smoke"' "$WORK/soc_ds.json" || fail "could not create an HA SOC data source: $(cat "$WORK/soc_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/soc-smoke/health > "$WORK/soc_health.json" || true
+grep -q "connecting to home assistant" "$WORK/soc_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/soc_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-hasoc-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled HA SOC plugin's signature"
+fi
+echo "  ok: plugin registered"
+
 echo "== terminal gate"
 expect 403 -H 'X-Remote-User-Name: ed' http://127.0.0.1:1337/terminal/
 expect 200 -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/terminal/
@@ -187,6 +219,8 @@ docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-techni
 docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-musicassistant-datasource/gpx_music_assistant_linux_amd64 || fail "Music Assistant backend is not under /opt/grafana-app"
 docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-unifinetwork-datasource/gpx_unifi_network_linux_amd64 || fail "Unifi Network backend is not under /opt/grafana-app"
 docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-unifiprotect-datasource/gpx_unifi_protect_linux_amd64 || fail "Unifi Protect backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-homeassistant-datasource/gpx_home_assistant_linux_amd64 || fail "Home Assistant backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-hasoc-datasource/gpx_ha_soc_linux_amd64 || fail "HA SOC backend is not under /opt/grafana-app"
 echo "  Grafana's own plugins-bundled directory holds: $(docker exec "$NAME" ls /usr/share/grafana/plugins-bundled 2>/dev/null || echo '(absent)')"
 
 echo "== state lives under /data, nothing downloaded"

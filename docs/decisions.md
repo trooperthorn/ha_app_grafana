@@ -243,3 +243,39 @@ inside the gate it moved from Grafana's `plugins-bundled` to
 `/opt/grafana-app/plugins-bundled`, which `grafana.ini` names as the
 bundled plugin path. `apt-get upgrade` was added to the build at the same
 time so glibc's pending fixes land.
+
+## 2026-09-17: Home Assistant and HA SOC plugins reuse the same WebSocket client shape
+
+The owner asked to also cover Home Assistant itself and HA SOC
+(`trooperthorn/ha_int_soc`). Neither has a REST surface that answers this
+app's questions: Home Assistant's long-term statistics
+(`recorder/statistics_during_period`) and system health
+(`system_health/info`) are WebSocket-only commands with no REST
+equivalent (its REST API covers current entity state and raw history,
+which this repository does not duplicate), and HA SOC has no HTTP view of
+its own at all - every `ha_soc/*` command it registers rides on that same
+Home Assistant core WebSocket API. So both new plugins are WebSocket
+clients (`gorilla/websocket`, the first dependency in this repository not
+already pulled in by `grafana-plugin-sdk-go`), completing Home
+Assistant's own documented `auth_required`/`auth`/`auth_ok` handshake
+with a long-lived access token per query, the same one the frontend and
+every other HA integration uses.
+
+`system_health/info` does not answer with the plain
+`{"success":true,"result":...}` envelope every other command here uses:
+it confirms the subscription with a bare success result, then streams
+`initial`/`update`/`finish` events on the same connection, per Home
+Assistant core's `homeassistant/components/system_health/__init__.py`.
+The Home Assistant plugin's client reads that sequence to completion
+before returning, since a Grafana backend plugin answers one request per
+query and has nothing to gain from leaving the subscription open.
+
+HA SOC's own `require_soc_access` decorator (`websocket_api.py`) rejects
+any non-admin token, and by default (`access_level: owner_only`) accepts
+only the account owner's; the HA SOC plugin's docs say this plainly
+rather than let a confusing "unauthorized" surface with no explanation.
+Its `posture`, `risk`, and `audit` series and their field names are taken
+directly from `risk.py`'s `RiskEngine._compute_user_risk` /
+`async_compute_posture` and `audit.py`'s `AuditLog.async_log` record
+shape - the same "read the real source, do not guess the schema" standard
+every other bundled plugin here was held to.
