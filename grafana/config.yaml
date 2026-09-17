@@ -67,6 +67,9 @@ options:
   unifi_network_host: ""
   unifi_network_api_key: ""
   unifi_network_verify_ssl: false
+  unifi_protect_host: ""
+  unifi_protect_api_key: ""
+  unifi_protect_verify_ssl: false
 
 schema:
   # Home Assistant usernames (the login name, as X-Remote-User-Name carries
@@ -113,3 +116,8 @@ schema:
   unifi_network_host: str
   unifi_network_api_key: password
   unifi_network_verify_ssl: bool
+  # The bundled Unifi Protect data source is provisioned automatically when
+  # both host and api key are set; same verify_ssl default as Unifi Network.
+  unifi_protect_host: str
+  unifi_protect_api_key: password
+  unifi_protect_verify_ssl: bool

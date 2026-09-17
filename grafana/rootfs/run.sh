@@ -196,7 +196,7 @@ fi
 log_info "Roles: ${ADMIN_COUNT} administrator(s), default role for everyone else: ${DEFAULT_ROLE}."
 
 # --- Plugins: catalogue ids and hash-checked URLs into /data/plugins -----
-UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource,trooperthorn-musicassistant-datasource,trooperthorn-unifinetwork-datasource"
+UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource,trooperthorn-musicassistant-datasource,trooperthorn-unifinetwork-datasource,trooperthorn-unifiprotect-datasource"
 while IFS= read -r spec; do
     [ -n "$spec" ] || continue
     id="${spec%%@*}"
@@ -335,6 +335,27 @@ if [ -n "$UNIFI_NETWORK_HOST" ] && [ -n "$UNIFI_NETWORK_API_KEY" ]; then
     log_info "Provisioned the Unifi Network data source (${UNIFI_NETWORK_HOST})."
 else
     rm -f "$UNIFI_NETWORK_PROVISIONING"
+fi
+
+# --- Unifi Protect data source provisioning --------------------------------
+# Both host and api key must be set or the bundled data source is left
+# unprovisioned; clearing either one removes the file so Grafana
+# deprovisions it too.
+UNIFI_PROTECT_PROVISIONING="/data/provisioning/datasources/unifiprotect.yaml"
+UNIFI_PROTECT_HOST="$(config_value 'unifi_protect_host' '')"
+UNIFI_PROTECT_API_KEY="$(config_value 'unifi_protect_api_key' '')"
+UNIFI_PROTECT_VERIFY_SSL="$(config_value 'unifi_protect_verify_ssl' 'false')"
+if [ -n "$UNIFI_PROTECT_HOST" ] && [ -n "$UNIFI_PROTECT_API_KEY" ]; then
+    ( umask 077
+      sed -e "s|%%unifi_protect_host%%|$(sed_escape "$UNIFI_PROTECT_HOST")|g" \
+          -e "s|%%unifi_protect_api_key%%|$(sed_escape "$UNIFI_PROTECT_API_KEY")|g" \
+          -e "s|%%unifi_protect_verify_ssl%%|$(sed_escape "$UNIFI_PROTECT_VERIFY_SSL")|g" \
+          /etc/grafana/provisioning-datasources/unifiprotect.yaml.template > "$UNIFI_PROTECT_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$UNIFI_PROTECT_PROVISIONING" 2>/dev/null \
+        || log_warning "Could not chown the Unifi Protect provisioning file to the grafana user."
+    log_info "Provisioned the Unifi Protect data source (${UNIFI_PROTECT_HOST})."
+else
+    rm -f "$UNIFI_PROTECT_PROVISIONING"
 fi
 
 # --- Access log rotation ---------------------------------------------------

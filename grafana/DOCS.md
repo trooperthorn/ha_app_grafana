@@ -42,6 +42,13 @@ container. The reasoning is in the repository's `docs/security.md` and
    `unifi_network_verify_ssl` off (the default) for a typical self-signed
    console. The data source is provisioned automatically, named "Unifi
    Network".
+8. To use the bundled Unifi Protect data source, set `unifi_protect_host`
+   and `unifi_protect_api_key` (a local Integration API key from the
+   console's Settings > Control Plane > Integrations; Protect uses its own
+   key, separate from Network's) the same way, and restart. It exposes a
+   camera inventory only, named "Unifi Protect": Protect's API has no
+   historical events route to query, only a live WebSocket subscription a
+   one-request-per-query backend plugin cannot honestly offer.
 
 ## Who can do what
 
@@ -78,6 +85,9 @@ request after authenticating the session; a browser cannot supply its own.
 | `unifi_network_host` | `""` | Unifi Network controller/console address; provisions the bundled data source when set together with `unifi_network_api_key` |
 | `unifi_network_api_key` | `""` | A local Integration API key from the controller's Settings > Control Plane > Integrations |
 | `unifi_network_verify_ssl` | `false` | Verify the controller's TLS certificate; off by default for a typical self-signed console |
+| `unifi_protect_host` | `""` | Unifi Protect console address; provisions the bundled data source when set together with `unifi_protect_api_key` |
+| `unifi_protect_api_key` | `""` | A local Integration API key from the console's Settings > Control Plane > Integrations (Protect's own key, separate from Network's) |
+| `unifi_protect_verify_ssl` | `false` | Verify the console's TLS certificate; off by default for a typical self-signed console |
 
 ## Plugins
 
@@ -100,8 +110,8 @@ The download is hashed before it is unpacked, and a mismatch is logged and
 not installed. `unsigned: true` adds the id to Grafana's
 `allow_loading_unsigned_plugins`, which is what a plugin Grafana has not
 signed needs to load. The SolarWinds SWIS, Technitium DNS, Music
-Assistant and Unifi Network data sources are built into the image and
-need none of this.
+Assistant, Unifi Network and Unifi Protect data sources are built into
+the image and need none of this.
 
 ## The terminal
 

@@ -1,0 +1,17 @@
+# Rendered by run.sh into /data/provisioning/datasources/unifiprotect.yaml
+# only when both unifi_protect_host and unifi_protect_api_key are set;
+# removed again if either option is cleared, so Grafana deprovisions it too.
+apiVersion: 1
+
+datasources:
+  - name: "Unifi Protect"
+    type: "trooperthorn-unifiprotect-datasource"
+    access: proxy
+    orgId: 1
+    version: 1
+    editable: false
+    jsonData:
+      host: "%%unifi_protect_host%%"
+      verifySSL: %%unifi_protect_verify_ssl%%
+    secureJsonData:
+      apiKey: "%%unifi_protect_api_key%%"

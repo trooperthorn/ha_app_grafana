@@ -123,8 +123,7 @@ commit hash. Scaffolded with `@grafana/create-plugin` (Go backend using
 `grafana-plugin-sdk-go`, calling only `GET /api/dashboard/stats/get` with a
 non-expiring API token) and trimmed of the generator's own CI, Docker dev
 environment and Playwright e2e scaffolding, none of which this repository
-needs a second copy of. Unifi Protect, if built, is expected to follow the
-same pattern.
+needs a second copy of.
 
 ## 2026-09-17: Music Assistant data source queries its HTTP endpoint, not its WebSocket
 
@@ -171,6 +170,29 @@ monitoring dashboard's, and this plugin does not claim to audit anything.
 Read-only by construction: it uses only `GET` routes and never HA SOC's
 write-back path (`PUT` to disable a policy or rule), which this plugin has
 no reason to carry.
+
+## 2026-09-17: Unifi Protect plugin has a cameras series and no events series
+
+Built the same way as Unifi Network: base path
+`/proxy/protect/integration/v1`, `X-API-KEY` header, `GET /cameras`
+(Protect's own contract makes this an unpaginated array, unlike Network's
+offset/limit collections, so no pagination helper was carried over), and
+the same `_normalize_camera` candidate-key fields (`isRecording` as a
+plain boolean on some firmwares, `recordingSettings.mode` on others; both
+covered by this plugin's own tests).
+
+Deliberately no events/detections series. HA SOC's contract verification
+(`docs/UNIFI-LOCAL-API-CONTRACT.md`) searched every documented path in
+Protect 7.2.105's OpenAPI spec and found no historical `/events`,
+`/detections`, or `/alarms` route; live events exist only as the
+persistent WebSocket subscription `GET /subscribe/events`, which HA SOC
+itself works around by reading Home Assistant's loaded `unifiprotect`
+integration's in-memory buffer rather than calling Protect's API for
+history. A Grafana backend plugin answers one HTTP request per query and
+holds no state between them: it has no route to poll for history and no
+honest way to hold a persistent subscription open between queries either,
+so offering an events series would mean fabricating data. This plugin
+says so in its README rather than shipping a series that can't be real.
 
 ## 2026-09-17: /data ownership failure degrades instead of crash-looping
 

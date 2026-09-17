@@ -31,6 +31,15 @@ field candidates verified in `trooperthorn/ha_int_soc`. New options
 `unifi_network_verify_ssl` provision it automatically when host and key
 are both set.
 
+Added a Unifi Protect data source, built the same way: a camera inventory
+(recording state, online state, channel count, console deep link) from a
+console's local Integration API. Cameras only, deliberately: Protect's API
+has no historical events/detections REST route, only a live WebSocket
+subscription a one-request-per-query backend plugin cannot honestly
+offer. New options `unifi_protect_host`, `unifi_protect_api_key`, and
+`unifi_protect_verify_ssl` provision it automatically when host and key
+are both set.
+
 ## 2026.09.16.1
 
 First release. Grafana 13.2.2 (OSS) behind Home Assistant Ingress only:

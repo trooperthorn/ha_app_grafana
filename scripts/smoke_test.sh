@@ -134,6 +134,23 @@ if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-unifinetwork-datasource" | g
 fi
 echo "  ok: plugin registered"
 
+echo "== bundled Unifi Protect plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-unifiprotect-datasource/settings > "$WORK/up_plugin.json" || true
+grep -q '"id":"trooperthorn-unifiprotect-datasource"' "$WORK/up_plugin.json" || fail "plugin settings not served: $(cat "$WORK/up_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/up_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/up_plugin.json")"
+# Same proof as the other bundled plugins: point it at a host that cannot
+# answer and let the Go backend's own health check fail.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"up-smoke","type":"trooperthorn-unifiprotect-datasource","access":"proxy","uid":"up-smoke","jsonData":{"host":"unifiprotect.invalid","verifySSL":false},"secureJsonData":{"apiKey":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/up_ds.json" || true
+grep -q '"uid":"up-smoke"' "$WORK/up_ds.json" || fail "could not create a Unifi Protect data source: $(cat "$WORK/up_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/up-smoke/health > "$WORK/up_health.json" || true
+grep -q "calling unifi protect" "$WORK/up_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/up_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-unifiprotect-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled Unifi Protect plugin's signature"
+fi
+echo "  ok: plugin registered"
+
 echo "== terminal gate"
 expect 403 -H 'X-Remote-User-Name: ed' http://127.0.0.1:1337/terminal/
 expect 200 -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/terminal/
@@ -169,6 +186,7 @@ docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-swis-d
 docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource/gpx_technitium_dns_linux_amd64 || fail "Technitium backend is not under /opt/grafana-app"
 docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-musicassistant-datasource/gpx_music_assistant_linux_amd64 || fail "Music Assistant backend is not under /opt/grafana-app"
 docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-unifinetwork-datasource/gpx_unifi_network_linux_amd64 || fail "Unifi Network backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-unifiprotect-datasource/gpx_unifi_protect_linux_amd64 || fail "Unifi Protect backend is not under /opt/grafana-app"
 echo "  Grafana's own plugins-bundled directory holds: $(docker exec "$NAME" ls /usr/share/grafana/plugins-bundled 2>/dev/null || echo '(absent)')"
 
 echo "== state lives under /data, nothing downloaded"
