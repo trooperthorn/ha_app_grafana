@@ -13,9 +13,13 @@
 #   nano, less   the terminal's editor and pager; Ubuntu's minimal image has neither
 #   procps       ps and pgrep, for the terminal and the smoke test
 #   unzip        unpacking verified custom plugin zips
-#   the SolarWinds SWIS data source plugin, built here from the pinned
-#   OrionGuides commit so the image carries its own provenance and no
-#   plugin is downloaded at run time.
+#   the SolarWinds SWIS data source plugin, built here from
+#   grafana/plugins-src/swis-datasource (vendored into this repository from
+#   trooperthorn/SolarWinds_OrionGuides at a pinned commit, the same as the
+#   plugins below, rather than cloned at build time) so the image carries
+#   its own provenance, no plugin is downloaded at run time, and this
+#   build no longer breaks when that source repository's other branches
+#   change.
 #   the Technitium DNS data source plugin, built here from
 #   grafana/plugins-src/technitium-datasource (this repository's own
 #   source, since no separate upstream repository holds it), for the same
@@ -36,19 +40,13 @@
 # app uses on Debian), and the SWIS plugin's Go backend is a static binary
 # that runs on either. See docs/decisions.md.
 
-# ---- Stage 1: the SWIS data source backend, from the pinned source commit.
+# ---- Stage 1: the SWIS data source backend, from this repo's own source.
 FROM golang:1.27.1-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c0627f666428e40310f6b AS swis-backend
-ARG SWIS_PLUGIN_REPO=https://github.com/trooperthorn/SolarWinds_OrionGuides.git
-ARG SWIS_PLUGIN_COMMIT=508ed54fbfc397ecc2634a64ebc11c9c1f8537aa
 # The Supervisor passes BUILD_ARCH (amd64 or aarch64); a plain docker build
 # passes nothing and the machine's own architecture is used.
 ARG BUILD_ARCH
+COPY plugins-src/swis-datasource /src
 WORKDIR /src
-RUN git init -q . \
-    && git remote add origin "${SWIS_PLUGIN_REPO}" \
-    && git fetch -q --depth 1 origin "${SWIS_PLUGIN_COMMIT}" \
-    && git checkout -q FETCH_HEAD
-WORKDIR /src/apps/grafana-swis-datasource
 RUN set -eu; \
     case "${BUILD_ARCH:-$(uname -m)}" in \
         amd64|x86_64) goarch=amd64 ;; \
@@ -58,9 +56,9 @@ RUN set -eu; \
     CGO_ENABLED=0 GOOS=linux GOARCH="${goarch}" \
         go build -trimpath -ldflags="-s -w" -o "/out/gpx_swis_linux_${goarch}" ./pkg
 
-# ---- Stage 2: the plugin frontend bundle, from the same commit.
+# ---- Stage 2: the plugin frontend bundle, from the same source.
 FROM node:26-bookworm-slim@sha256:cd9f682fa2885cd1056e830424764158570061c59736a1da836bc3d73df095ae AS swis-frontend
-COPY --from=swis-backend /src/apps/grafana-swis-datasource /src
+COPY plugins-src/swis-datasource /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 

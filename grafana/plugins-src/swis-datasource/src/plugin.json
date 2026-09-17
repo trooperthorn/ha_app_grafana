@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "SolarWinds SWIS",
+  "id": "trooperthorn-swis-datasource",
+  "metrics": true,
+  "alerting": true,
+  "backend": true,
+  "executable": "gpx_swis",
+  "info": {
+    "description": "Query SolarWinds Observability Self-Hosted (Orion) with SWQL over the SWIS REST API, and invoke allowlisted verbs.",
+    "author": {
+      "name": "trooperthorn",
+      "url": "https://github.com/trooperthorn/SolarWinds_OrionGuides"
+    },
+    "keywords": ["datasource", "solarwinds", "orion", "swis", "swql"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [
+      { "name": "Source and documentation", "url": "https://github.com/trooperthorn/SolarWinds_OrionGuides/tree/main/apps/grafana-swis-datasource" }
+    ],
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=11.0.0",
+    "plugins": []
+  }
+}

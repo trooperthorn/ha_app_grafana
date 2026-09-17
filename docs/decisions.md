@@ -328,3 +328,28 @@ it from crash-looping forever, but it could never actually recover here.
 Both directory entries are now `rw`. The profile note at its head warns
 this was "NOT verified against a live Supervisor" for exactly this
 reason: the CI smoke test's plain `docker run` never attaches it.
+
+## 2026-09-17: SWIS plugin source vendored into this repository, pin retired
+
+The earlier entry above ("Technitium DNS plugin sourced in this
+repository, not a pinned external commit") explained why the SWIS plugin
+alone was built by `git fetch`ing a pinned commit of
+`trooperthorn/SolarWinds_OrionGuides`, rather than from source living in
+this repository like every other bundled plugin: its source already lived
+there, developed alongside the SWIS schema documentation it depends on.
+That pin became a liability once other work continued on
+`SolarWinds_OrionGuides`'s own branches - merging them there risked
+breaking this image's build the moment anyone moved the pinned commit
+forward, entirely outside this repository's own review.
+
+So the plugin's source at that same pinned commit
+(`508ed54fbfc397ecc2634a64ebc11c9c1f8537aa`) is now vendored into
+`grafana/plugins-src/swis-datasource`, and the Dockerfile builds it with
+`COPY` exactly like the six other bundled plugins, instead of `git init`
++ `git fetch --depth 1` to that commit. This repository's own history is
+now the only pin SWIS has; `SolarWinds_OrionGuides` can merge, rebase, or
+delete its `apps/grafana-swis-datasource` branch entirely without this
+build noticing. A future SWIS change still has to be brought over by
+copying it into `plugins-src/swis-datasource` and committing it here,
+the same as any other bundled plugin's changes are - there is no longer
+an automatic link to `SolarWinds_OrionGuides` at all.
