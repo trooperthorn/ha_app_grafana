@@ -11,8 +11,12 @@ import (
 // config page: the Technitium DNS Server's own web console URL (the API
 // shares that origin, e.g. http://192.168.1.10:5380).
 type PluginSettings struct {
-	URL     string                `json:"url"`
-	Secrets *SecretPluginSettings `json:"-"`
+	URL string `json:"url"`
+	// QueryLogsAppName is the installed name of the "Query Logs (Sqlite)"
+	// DNS app, for servers that renamed it at install time. Empty uses the
+	// store default, "Query Logs (Sqlite)".
+	QueryLogsAppName string                `json:"queryLogsAppName"`
+	Secrets          *SecretPluginSettings `json:"-"`
 }
 
 // SecretPluginSettings holds the API token, created once in the Technitium

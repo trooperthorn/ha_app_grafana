@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+Added a "Query logs" series to the Technitium DNS data source: reads the
+per-request log stored by the "Query Logs (Sqlite)" DNS app (or its MySQL,
+PostgreSQL, or SQL Server equivalents, which share the same API) over
+Technitium's `/api/logs/query` endpoint, using the dashboard's own time
+range and optional domain/client filters, so an existing installation does
+not need a separate time series database for DNS query history. New option
+`technitium_querylogs_app_name` is only needed if that app was installed
+under a non-default name.
+
 ## 2026.09.17.1
 
 Fixed: a `/data` bind mount that refuses ownership changes (rootless

@@ -12,5 +12,6 @@ datasources:
     editable: false
     jsonData:
       url: "%%technitium_url%%"
+      queryLogsAppName: "%%technitium_querylogs_app_name%%"
     secureJsonData:
       apiToken: "%%technitium_api_token%%"

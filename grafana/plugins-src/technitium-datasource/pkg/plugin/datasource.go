@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
@@ -22,7 +23,8 @@ var (
 // statistics: query volume over time, response totals, and the top
 // clients/domains/blocked-domains tables.
 type Datasource struct {
-	client *technitiumClient
+	client           *technitiumClient
+	queryLogsAppName string
 }
 
 func NewDatasource(_ context.Context, settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
@@ -32,7 +34,8 @@ func NewDatasource(_ context.Context, settings backend.DataSourceInstanceSetting
 	}
 
 	return &Datasource{
-		client: newTechnitiumClient(config.URL, config.Secrets.APIToken),
+		client:           newTechnitiumClient(config.URL, config.Secrets.APIToken),
+		queryLogsAppName: config.QueryLogsAppName,
 	}, nil
 }
 
@@ -69,8 +72,14 @@ type queryModel struct {
 	StatType string `json:"statType"`
 	// Series selects which part of the response becomes this query's
 	// frame(s): "volume" (the time series), "topClients", "topDomains",
-	// or "topBlockedDomains" (each a table of name+hits).
+	// "topBlockedDomains" (each a table of name+hits), or "queryLogs" (the
+	// installed Query Logs app's stored request/response log, over the
+	// dashboard's own time range rather than StatType).
 	Series string `json:"series"`
+	// QName and ClientIPAddress filter the "queryLogs" series; both are
+	// optional and passed through to the Query Logs app's own filtering.
+	QName           string `json:"qname"`
+	ClientIPAddress string `json:"clientIpAddress"`
 }
 
 func (d *Datasource) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
@@ -93,6 +102,20 @@ func (d *Datasource) query(_ context.Context, query backend.DataQuery) backend.D
 	}
 	if qm.Series == "" {
 		qm.Series = "volume"
+	}
+
+	if qm.Series == "queryLogs" {
+		entries, err := d.client.getQueryLogs(queryLogsFilter{
+			appName:         d.queryLogsAppName,
+			start:           query.TimeRange.From,
+			end:             query.TimeRange.To,
+			clientIPAddress: qm.ClientIPAddress,
+			qname:           qm.QName,
+		})
+		if err != nil {
+			return backend.ErrDataResponse(backend.StatusInternal, err.Error())
+		}
+		return backend.DataResponse{Frames: data.Frames{queryLogsFrame(entries)}}
 	}
 
 	stats, err := d.client.getDashboardStats(qm.StatType)
@@ -129,6 +152,52 @@ func volumeFrame(stats *dashboardStatsResponse) *data.Frame {
 		frame.Fields = append(frame.Fields, data.NewField(ds.Label, nil, ds.Data))
 	}
 	frame.Meta = &data.FrameMeta{PreferredVisualization: data.VisTypeGraph}
+	return frame
+}
+
+// queryLogsFrame turns a page of Query Logs app entries into a table frame:
+// one row per DNS request/response, oldest first. A timestamp this plugin
+// cannot parse is left as the zero time rather than dropping the row, since
+// Technitium's own format has changed across app versions.
+func queryLogsFrame(entries []queryLogEntry) *data.Frame {
+	times := make([]time.Time, 0, len(entries))
+	clients := make([]string, 0, len(entries))
+	protocols := make([]string, 0, len(entries))
+	responseTypes := make([]string, 0, len(entries))
+	rcodes := make([]string, 0, len(entries))
+	qnames := make([]string, 0, len(entries))
+	qtypes := make([]string, 0, len(entries))
+	qclasses := make([]string, 0, len(entries))
+	answers := make([]string, 0, len(entries))
+	rtts := make([]*float64, 0, len(entries))
+
+	for _, e := range entries {
+		ts, _ := time.Parse(time.RFC3339Nano, e.Timestamp)
+		times = append(times, ts)
+		clients = append(clients, e.ClientIPAddress)
+		protocols = append(protocols, e.Protocol)
+		responseTypes = append(responseTypes, e.ResponseType)
+		rcodes = append(rcodes, e.RCode)
+		qnames = append(qnames, e.QName)
+		qtypes = append(qtypes, e.QType)
+		qclasses = append(qclasses, e.QClass)
+		answers = append(answers, e.Answer)
+		rtts = append(rtts, e.ResponseRtt)
+	}
+
+	frame := data.NewFrame("query_logs",
+		data.NewField("time", nil, times),
+		data.NewField("clientIpAddress", nil, clients),
+		data.NewField("protocol", nil, protocols),
+		data.NewField("responseType", nil, responseTypes),
+		data.NewField("rcode", nil, rcodes),
+		data.NewField("qname", nil, qnames),
+		data.NewField("qtype", nil, qtypes),
+		data.NewField("qclass", nil, qclasses),
+		data.NewField("answer", nil, answers),
+		data.NewField("responseRttMs", nil, rtts),
+	)
+	frame.Meta = &data.FrameMeta{PreferredVisualization: data.VisTypeTable}
 	return frame
 }
 

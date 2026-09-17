@@ -69,6 +69,13 @@ configuration:
     description: >-
       A non-expiring API token from the Technitium console (Administration,
       Sessions, Create API Token).
+  technitium_querylogs_app_name:
+    name: Technitium Query Logs app name
+    description: >-
+      Only needed if the "Query Logs (Sqlite)" DNS app (or its MySQL,
+      PostgreSQL, or SQL Server equivalents) was installed under a
+      different name than the store default. Leave empty to use that
+      default.
   musicassistant_url:
     name: Music Assistant URL
     description: >-

@@ -286,10 +286,12 @@ chmod 0644 "$RUN_DIR/nginx.conf"
 TECHNITIUM_PROVISIONING="/data/provisioning/datasources/technitium.yaml"
 TECHNITIUM_URL="$(config_value 'technitium_url' '')"
 TECHNITIUM_API_TOKEN="$(config_value 'technitium_api_token' '')"
+TECHNITIUM_QUERYLOGS_APP_NAME="$(config_value 'technitium_querylogs_app_name' '')"
 if [ -n "$TECHNITIUM_URL" ] && [ -n "$TECHNITIUM_API_TOKEN" ]; then
     ( umask 077
       sed -e "s|%%technitium_url%%|$(sed_escape "$TECHNITIUM_URL")|g" \
           -e "s|%%technitium_api_token%%|$(sed_escape "$TECHNITIUM_API_TOKEN")|g" \
+          -e "s|%%technitium_querylogs_app_name%%|$(sed_escape "$TECHNITIUM_QUERYLOGS_APP_NAME")|g" \
           /etc/grafana/provisioning-datasources/technitium.yaml.template > "$TECHNITIUM_PROVISIONING" )
     chown "$GRAFANA_UID:$GRAFANA_GID" "$TECHNITIUM_PROVISIONING" 2>/dev/null \
         || log_warning "Could not chown the Technitium provisioning file to the grafana user."

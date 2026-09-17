@@ -62,6 +62,7 @@ options:
   access_log_retention_days: 90
   technitium_url: ""
   technitium_api_token: ""
+  technitium_querylogs_app_name: ""
   musicassistant_url: ""
   musicassistant_api_token: ""
   unifi_network_host: ""
@@ -111,6 +112,10 @@ schema:
   # when both are set; leave either empty to leave it unprovisioned.
   technitium_url: str
   technitium_api_token: password
+  # Only needed if the "Query Logs (Sqlite)" DNS app (or its MySQL,
+  # PostgreSQL, or SQL Server equivalents) was installed under a different
+  # name than the store default; empty uses that default.
+  technitium_querylogs_app_name: str
   # The bundled Music Assistant data source is provisioned automatically
   # when both are set; leave either empty to leave it unprovisioned.
   musicassistant_url: str

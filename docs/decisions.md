@@ -279,3 +279,29 @@ directly from `risk.py`'s `RiskEngine._compute_user_risk` /
 `async_compute_posture` and `audit.py`'s `AuditLog.async_log` record
 shape - the same "read the real source, do not guess the schema" standard
 every other bundled plugin here was held to.
+
+## 2026-09-17: Technitium query logs read over its own HTTP API, not a mounted SQLite file
+
+A user who already runs Technitium's "Query Logs (Sqlite)" DNS app (or its
+MySQL, PostgreSQL, or SQL Server equivalents) asked whether this
+repository's Technitium plugin could read that stored history directly,
+instead of standing up InfluxDB for DNS query history. Reading the
+`.sqlite` file itself was ruled out: this app has nothing of the host
+filesystem mapped in, on purpose, and adding a network file mount just for
+one plugin would be a worse hole than the problem it solves.
+
+Technitium's own web API already exposes it, confirmed against
+`DnsServerCore/WebServiceLogsApi.cs` and `Apps/QueryLogsSqliteApp/App.cs`
+in `TechnitiumSoftware/DnsServer`: any installed DNS app implementing
+`IDnsQueryLogs` (the Sqlite app included) is queryable at
+`GET /api/logs/query?name=<app>&classPath=<class>&...`, paginated, with
+`start`/`end`/`clientIpAddress`/`qname` filters, over the same token this
+plugin already authenticates dashboard stats with. So the Technitium
+plugin gained a "Query logs" series that pages through that endpoint
+across the dashboard's own time range (capped at 10,000 rows per query, to
+keep a wide range against a busy resolver from pulling the whole log) -
+the same "same host, same token, no new infrastructure" standard the
+Unifi and Home Assistant plugins were held to. The app's class path
+(`QueryLogsSqlite.App`) is fixed by its source and not configurable; its
+display name is, hence `technitium_querylogs_app_name` for a server that
+renamed it away from the store default.
