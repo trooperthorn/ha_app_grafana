@@ -58,3 +58,85 @@ configuration:
       How many daily rotations of the web access log (one JSON line per
       request, with the Home Assistant user) to keep under the data
       directory.
+  technitium_url:
+    name: Technitium DNS Server URL
+    description: >-
+      The Technitium DNS Server web console origin. Set together with
+      technitium_api_token to provision the bundled Technitium DNS data
+      source automatically.
+  technitium_api_token:
+    name: Technitium API token
+    description: >-
+      A non-expiring API token from the Technitium console (Administration,
+      Sessions, Create API Token).
+  musicassistant_url:
+    name: Music Assistant URL
+    description: >-
+      The Music Assistant server's own web console origin. Set together
+      with musicassistant_api_token to provision the bundled Music
+      Assistant data source automatically.
+  musicassistant_api_token:
+    name: Music Assistant API token
+    description: >-
+      A long-lived API token from the Music Assistant web UI's user
+      settings, or its auth/token/create API command.
+  unifi_network_host:
+    name: Unifi Network controller address
+    description: >-
+      The Unifi controller/console address. Set together with
+      unifi_network_api_key to provision the bundled Unifi Network data
+      source automatically.
+  unifi_network_api_key:
+    name: Unifi Network API key
+    description: >-
+      A local Integration API key from the controller's Settings, Control
+      Plane, Integrations.
+  unifi_network_verify_ssl:
+    name: Verify Unifi Network TLS certificate
+    description: >-
+      Verify the controller's TLS certificate. Off by default for a
+      typical self-signed console.
+  unifi_protect_host:
+    name: Unifi Protect console address
+    description: >-
+      The Unifi Protect console address. Set together with
+      unifi_protect_api_key to provision the bundled Unifi Protect data
+      source automatically.
+  unifi_protect_api_key:
+    name: Unifi Protect API key
+    description: >-
+      A local Integration API key from the console's Settings, Control
+      Plane, Integrations (Protect's own key, separate from Network's).
+  unifi_protect_verify_ssl:
+    name: Verify Unifi Protect TLS certificate
+    description: >-
+      Verify the console's TLS certificate. Off by default for a typical
+      self-signed console.
+  homeassistant_url:
+    name: Home Assistant URL
+    description: >-
+      This Home Assistant instance's own origin. Set together with
+      homeassistant_access_token to provision the bundled Home Assistant
+      data source automatically.
+  homeassistant_access_token:
+    name: Home Assistant access token
+    description: >-
+      A long-lived access token from your Home Assistant profile's
+      Security tab.
+  homeassistant_verify_ssl:
+    name: Verify Home Assistant TLS certificate
+    description: Verify the instance's TLS certificate. Off by default.
+  hasoc_url:
+    name: HA SOC Home Assistant URL
+    description: >-
+      The Home Assistant instance HA SOC is installed on, usually the same
+      as homeassistant_url. Set together with hasoc_access_token to
+      provision the bundled HA SOC data source automatically.
+  hasoc_access_token:
+    name: HA SOC access token
+    description: >-
+      A long-lived access token for a Home Assistant admin user. HA SOC
+      requires admin, and by default the account owner specifically.
+  hasoc_verify_ssl:
+    name: Verify HA SOC TLS certificate
+    description: Verify the instance's TLS certificate. Off by default.
