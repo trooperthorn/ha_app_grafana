@@ -1,0 +1,16 @@
+# Rendered by run.sh into /data/provisioning/datasources/musicassistant.yaml
+# only when both musicassistant_url and musicassistant_api_token are set;
+# removed again if either option is cleared, so Grafana deprovisions it too.
+apiVersion: 1
+
+datasources:
+  - name: "Music Assistant"
+    type: "trooperthorn-musicassistant-datasource"
+    access: proxy
+    orgId: 1
+    version: 1
+    editable: false
+    jsonData:
+      url: "%%musicassistant_url%%"
+    secureJsonData:
+      apiToken: "%%musicassistant_api_token%%"

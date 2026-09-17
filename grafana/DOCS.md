@@ -29,6 +29,12 @@ container. The reasoning is in the repository's `docs/security.md` and
    and `technitium_api_token` (a non-expiring token from Administration,
    Sessions, Create API Token, in the Technitium console) and restart. The
    data source is provisioned automatically, named "Technitium DNS".
+6. To use the bundled Music Assistant data source, set `musicassistant_url`
+   (the server's own web console origin, e.g. `http://192.168.1.20:8095`)
+   and `musicassistant_api_token` (a long-lived token from the Music
+   Assistant web UI's user settings, or its `auth/token/create` API
+   command) and restart. The data source is provisioned automatically,
+   named "Music Assistant".
 
 ## Who can do what
 
@@ -60,6 +66,8 @@ request after authenticating the session; a browser cannot supply its own.
 | `access_log_retention_days` | `90` | Daily rotations of the access log to keep |
 | `technitium_url` | `""` | Technitium DNS Server web console origin; provisions the bundled data source when set together with `technitium_api_token` |
 | `technitium_api_token` | `""` | A non-expiring API token from the Technitium console (Administration, Sessions, Create API Token) |
+| `musicassistant_url` | `""` | Music Assistant server web console origin; provisions the bundled data source when set together with `musicassistant_api_token` |
+| `musicassistant_api_token` | `""` | A long-lived API token from the Music Assistant web UI (user settings) or its `auth/token/create` command |
 
 ## Plugins
 
@@ -81,8 +89,8 @@ custom_plugins:
 The download is hashed before it is unpacked, and a mismatch is logged and
 not installed. `unsigned: true` adds the id to Grafana's
 `allow_loading_unsigned_plugins`, which is what a plugin Grafana has not
-signed needs to load. The SolarWinds SWIS and Technitium DNS data sources
-are built into the image and need none of this.
+signed needs to load. The SolarWinds SWIS, Technitium DNS and Music
+Assistant data sources are built into the image and need none of this.
 
 ## The terminal
 

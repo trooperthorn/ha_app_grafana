@@ -7,6 +7,11 @@ way SWIS is: query volume, response totals, and top clients/domains/blocked
 domains from `/api/dashboard/stats/get`. New options `technitium_url` and
 `technitium_api_token` provision it automatically when both are set.
 
+Added a Music Assistant data source, built in the same way: player state
+(power, playback, volume) and now-playing info from its `POST /api`
+JSON-RPC endpoint. New options `musicassistant_url` and
+`musicassistant_api_token` provision it automatically when both are set.
+
 ## 2026.09.16.1
 
 First release. Grafana 13.2.2 (OSS) behind Home Assistant Ingress only:

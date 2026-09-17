@@ -123,8 +123,25 @@ commit hash. Scaffolded with `@grafana/create-plugin` (Go backend using
 `grafana-plugin-sdk-go`, calling only `GET /api/dashboard/stats/get` with a
 non-expiring API token) and trimmed of the generator's own CI, Docker dev
 environment and Playwright e2e scaffolding, none of which this repository
-needs a second copy of. Unifi Network, Unifi Protect, and Music Assistant
-data sources, if built, are expected to follow the same pattern.
+needs a second copy of. Unifi Network and Unifi Protect data sources, if
+built, are expected to follow the same pattern.
+
+## 2026-09-17: Music Assistant data source queries its HTTP endpoint, not its WebSocket
+
+Music Assistant's primary API is a WebSocket (`/ws`) using a
+`{message_id, command, args}` request and `{message_id, result}` /
+`{message_id, error_code, details}` response envelope (see
+`music_assistant_models.api` in the `music-assistant/models` repository).
+The same webserver also exposes `POST /api` with the identical envelope
+over plain HTTP, documented in
+`music_assistant/controllers/webserver/README.md` in the
+`music-assistant/server` repository. A Grafana backend plugin issues one
+request per query and does not benefit from a persistent connection, so
+this plugin uses the HTTP form and authenticates with a long-lived token
+(`auth/token/create`), never the WebSocket's session-based `auth` command.
+It calls only `players/all`; Music Assistant has no documented
+library-count/stats command as of this writing, so this plugin does not
+claim one.
 
 ## 2026-09-16: Grafana's own binaries excluded from the scan by path
 

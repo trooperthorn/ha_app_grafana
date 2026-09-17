@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "Music Assistant",
+  "id": "trooperthorn-musicassistant-datasource",
+  "metrics": true,
+  "backend": true,
+  "executable": "gpx_music_assistant",
+  "info": {
+    "description": "Query player state and now-playing info from a Music Assistant server's HTTP API.",
+    "author": {
+      "name": "Trooperthorn"
+    },
+    "keywords": ["datasource", "music", "musicassistant"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [],
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=12.3.0",
+    "plugins": []
+  }
+}

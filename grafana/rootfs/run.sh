@@ -34,6 +34,11 @@ config_list() {
     jq -r --arg k "$1" '(.[$k] // []) | .[] | tostring' "$OPTIONS_FILE" 2>/dev/null || true
 }
 
+# sed's own delimiter ("|", used below) and its "&" backreference both need
+# escaping in an operator-supplied value before it goes on the replacement
+# side of a substitution.
+sed_escape() { printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'; }
+
 as_grafana() {
     setpriv --reuid="$GRAFANA_UID" --regid="$GRAFANA_GID" --clear-groups --inh-caps=-all "$@"
 }
@@ -125,7 +130,7 @@ fi
 log_info "Roles: ${ADMIN_COUNT} administrator(s), default role for everyone else: ${DEFAULT_ROLE}."
 
 # --- Plugins: catalogue ids and hash-checked URLs into /data/plugins -----
-UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource"
+UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource,trooperthorn-musicassistant-datasource"
 while IFS= read -r spec; do
     [ -n "$spec" ] || continue
     id="${spec%%@*}"
@@ -214,9 +219,6 @@ TECHNITIUM_PROVISIONING="/data/provisioning/datasources/technitium.yaml"
 TECHNITIUM_URL="$(config_value 'technitium_url' '')"
 TECHNITIUM_API_TOKEN="$(config_value 'technitium_api_token' '')"
 if [ -n "$TECHNITIUM_URL" ] && [ -n "$TECHNITIUM_API_TOKEN" ]; then
-    # sed's own delimiter and its "&" backreference both need escaping in an
-    # operator-supplied value before it goes on the replacement side.
-    sed_escape() { printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'; }
     ( umask 077
       sed -e "s|%%technitium_url%%|$(sed_escape "$TECHNITIUM_URL")|g" \
           -e "s|%%technitium_api_token%%|$(sed_escape "$TECHNITIUM_API_TOKEN")|g" \
@@ -225,6 +227,23 @@ if [ -n "$TECHNITIUM_URL" ] && [ -n "$TECHNITIUM_API_TOKEN" ]; then
     log_info "Provisioned the Technitium DNS data source (${TECHNITIUM_URL})."
 else
     rm -f "$TECHNITIUM_PROVISIONING"
+fi
+
+# --- Music Assistant data source provisioning ------------------------------
+# Both options must be set or the bundled data source is left unprovisioned;
+# clearing either one removes the file so Grafana deprovisions it too.
+MUSICASSISTANT_PROVISIONING="/data/provisioning/datasources/musicassistant.yaml"
+MUSICASSISTANT_URL="$(config_value 'musicassistant_url' '')"
+MUSICASSISTANT_API_TOKEN="$(config_value 'musicassistant_api_token' '')"
+if [ -n "$MUSICASSISTANT_URL" ] && [ -n "$MUSICASSISTANT_API_TOKEN" ]; then
+    ( umask 077
+      sed -e "s|%%musicassistant_url%%|$(sed_escape "$MUSICASSISTANT_URL")|g" \
+          -e "s|%%musicassistant_api_token%%|$(sed_escape "$MUSICASSISTANT_API_TOKEN")|g" \
+          /etc/grafana/provisioning-datasources/musicassistant.yaml.template > "$MUSICASSISTANT_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$MUSICASSISTANT_PROVISIONING"
+    log_info "Provisioned the Music Assistant data source (${MUSICASSISTANT_URL})."
+else
+    rm -f "$MUSICASSISTANT_PROVISIONING"
 fi
 
 # --- Access log rotation ---------------------------------------------------

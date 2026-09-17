@@ -20,6 +20,8 @@
 #   grafana/plugins-src/technitium-datasource (this repository's own
 #   source, since no separate upstream repository holds it), for the same
 #   provenance reason.
+#   the Music Assistant data source plugin, built here from
+#   grafana/plugins-src/musicassistant-datasource, for the same reason.
 #
 # The Ubuntu variant rather than Alpine is deliberate: nginx-light and ttyd
 # are Ubuntu packages (nginx-light is the same lean nginx the Technitium DNS
@@ -74,7 +76,27 @@ COPY --from=technitium-backend /src /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
-# ---- Stage 5: the app image.
+# ---- Stage 5: the Music Assistant data source backend, from this repo's own source.
+FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS musicassistant-backend
+ARG BUILD_ARCH
+COPY plugins-src/musicassistant-datasource /src
+WORKDIR /src
+RUN set -eu; \
+    case "${BUILD_ARCH:-$(uname -m)}" in \
+        amd64|x86_64) goarch=amd64 ;; \
+        aarch64|arm64) goarch=arm64 ;; \
+        *) echo "unsupported architecture ${BUILD_ARCH:-$(uname -m)}" >&2; exit 1 ;; \
+    esac; \
+    CGO_ENABLED=0 GOOS=linux GOARCH="${goarch}" \
+        go build -trimpath -ldflags="-s -w" -o "/out/gpx_music_assistant_linux_${goarch}" ./pkg
+
+# ---- Stage 6: the Music Assistant plugin frontend bundle, from the same source.
+FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS musicassistant-frontend
+COPY --from=musicassistant-backend /src /src
+WORKDIR /src
+RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
+
+# ---- Stage 7: the app image.
 FROM grafana/grafana:13.2.2-ubuntu@sha256:9a68a82ec38931e1baacee5d471cf74aa42565eb49554caa5290663529de6941
 
 USER root
@@ -114,14 +136,18 @@ COPY --from=swis-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthor
 COPY --from=swis-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/
 COPY --from=technitium-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource
 COPY --from=technitium-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource/
+COPY --from=musicassistant-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthorn-musicassistant-datasource
+COPY --from=musicassistant-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-musicassistant-datasource/
 RUN chmod 0755 /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/gpx_swis_* \
         /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource/gpx_technitium_dns_* \
+        /opt/grafana-app/plugins-bundled/trooperthorn-musicassistant-datasource/gpx_music_assistant_* \
     && chown -R root:root /opt/grafana-app
 
 COPY rootfs /
 RUN chmod 0755 /run.sh /usr/local/bin/grafana_term_open \
     && chmod 0644 /etc/nginx/nginx.conf /etc/grafana/grafana.ini.template /etc/profile.d/grafana_terminal.sh \
-        /etc/grafana/provisioning-datasources/technitium.yaml.template
+        /etc/grafana/provisioning-datasources/technitium.yaml.template \
+        /etc/grafana/provisioning-datasources/musicassistant.yaml.template
 
 ARG BUILD_VERSION
 ARG BUILD_ARCH
