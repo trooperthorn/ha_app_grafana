@@ -305,3 +305,26 @@ Unifi and Home Assistant plugins were held to. The app's class path
 (`QueryLogsSqlite.App`) is fixed by its source and not configurable; its
 display name is, hence `technitium_querylogs_app_name` for a server that
 renamed it away from the store default.
+
+## 2026-09-17: the /data ownership failure was this app's own AppArmor profile, not the host
+
+A user hit the exact crash-loop the previous fix added diagnostics for,
+with `log_level: debug` on. Those diagnostics did their job: normal
+ownership (root:root, mode 755), a real ext4 bind mount, and `CAP_CHOWN`
+present in capabilities - nothing consistent with the "rootless
+Docker/Podman without an idmapped mount" explanation the error message
+offered. That ruled the host out and pointed at this container's own
+AppArmor profile instead.
+
+`grafana/apparmor.txt` granted `/data/ r,` and `/run/grafana-app/ r,` -
+read-only on those two directory *entries* - while `/data/** rwk,` and
+`/run/grafana-app/** rwk,` covered only their contents. AppArmor mediates
+`chown` as a write on the path being chowned, and `run.sh` chowns both
+directories directly (`chown_or_verify /data`, and `/run/grafana-app` via
+`$RUN_DIR` in the same call), not only what is inside them. Every start
+was denied by this app's own profile, on every host, regardless of the
+actual bind mount - the earlier fix's fallback-and-diagnose behavior kept
+it from crash-looping forever, but it could never actually recover here.
+Both directory entries are now `rw`. The profile note at its head warns
+this was "NOT verified against a live Supervisor" for exactly this
+reason: the CI smoke test's plain `docker run` never attaches it.

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+Fixed: the bundled AppArmor profile granted only read on the `/data` and
+`/run/grafana-app` directory entries themselves (`/data/ r,`), separate
+from the `rwk` granted on their contents (`/data/** rwk,`). `run.sh` chowns
+those two directories directly, not only what is inside them, so every
+start was denied by the app's own profile and misreported as a host/mount
+ownership problem - the previous fix's diagnostics were themselves correct
+(normal ownership, `CAP_CHOWN` present) but nothing pointed at AppArmor
+specifically. Both directory entries are now `rw`.
+
 Added a "Query logs" series to the Technitium DNS data source: reads the
 per-request log stored by the "Query Logs (Sqlite)" DNS app (or its MySQL,
 PostgreSQL, or SQL Server equivalents, which share the same API) over
