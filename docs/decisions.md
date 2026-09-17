@@ -123,8 +123,8 @@ commit hash. Scaffolded with `@grafana/create-plugin` (Go backend using
 `grafana-plugin-sdk-go`, calling only `GET /api/dashboard/stats/get` with a
 non-expiring API token) and trimmed of the generator's own CI, Docker dev
 environment and Playwright e2e scaffolding, none of which this repository
-needs a second copy of. Unifi Network and Unifi Protect data sources, if
-built, are expected to follow the same pattern.
+needs a second copy of. Unifi Protect, if built, is expected to follow the
+same pattern.
 
 ## 2026-09-17: Music Assistant data source queries its HTTP endpoint, not its WebSocket
 
@@ -142,6 +142,35 @@ this plugin uses the HTTP form and authenticates with a long-lived token
 It calls only `players/all`; Music Assistant has no documented
 library-count/stats command as of this writing, so this plugin does not
 claim one.
+
+## 2026-09-17: Unifi Network plugin's contract taken from `trooperthorn/ha_int_soc`
+
+The owner asked that this plugin reference the Unifi Network and Unifi
+Protect work already done in his `ha_int_soc` (HA SOC) repository rather
+than re-deriving the API from scratch. HA SOC's `docs/UNIFI-LOCAL-API-CONTRACT.md`
+records a verification pass against Ubiquiti's own versioned Network
+10.4.57 and Protect 7.2.105 OpenAPI/Postman artifacts (checksummed) and a
+live controller, corrected a wrong assumption (ACL rules and Firewall
+Policies are separate resources; a live controller returned an empty ACL
+list while the real rules lived under Firewall Policies), and recorded
+which field mappings are verified versus still on its own backlog.
+
+This plugin reuses that contract directly: base path
+`/proxy/network/integration/v1`, `X-API-KEY` header, no redirects followed,
+an 8 MB response cap, `/sites` then `/sites/{id}/clients` and
+`/sites/{id}/devices`, the `{"data": [...]}` offset/limit pagination
+envelope (falling back to a bare list), and the same candidate-key lists
+`unifi.py`'s `_normalize_client`/`_normalize_device` use for fields that
+vary across firmwares (name, VLAN, SSID, uptime, bandwidth). It reuses
+`_derive_wan`'s gateway-selection heuristic and its top-level
+uplink/wan/wan1/wan2/internet node search, but not the fuller
+`interfaces`/port-array shapes HA SOC's own contract doc still lists as
+unverified. It does not port ACL rules, Firewall Policies, or Wi-Fi
+broadcast configuration: those are HA SOC's security-audit surface, not a
+monitoring dashboard's, and this plugin does not claim to audit anything.
+Read-only by construction: it uses only `GET` routes and never HA SOC's
+write-back path (`PUT` to disable a policy or rule), which this plugin has
+no reason to carry.
 
 ## 2026-09-16: Grafana's own binaries excluded from the scan by path
 

@@ -35,6 +35,13 @@ container. The reasoning is in the repository's `docs/security.md` and
    Assistant web UI's user settings, or its `auth/token/create` API
    command) and restart. The data source is provisioned automatically,
    named "Music Assistant".
+7. To use the bundled Unifi Network data source, set `unifi_network_host`
+   (the controller/console address, e.g. `192.168.1.1`) and
+   `unifi_network_api_key` (a local Integration API key from the
+   controller's Settings > Control Plane > Integrations) and restart. Leave
+   `unifi_network_verify_ssl` off (the default) for a typical self-signed
+   console. The data source is provisioned automatically, named "Unifi
+   Network".
 
 ## Who can do what
 
@@ -68,6 +75,9 @@ request after authenticating the session; a browser cannot supply its own.
 | `technitium_api_token` | `""` | A non-expiring API token from the Technitium console (Administration, Sessions, Create API Token) |
 | `musicassistant_url` | `""` | Music Assistant server web console origin; provisions the bundled data source when set together with `musicassistant_api_token` |
 | `musicassistant_api_token` | `""` | A long-lived API token from the Music Assistant web UI (user settings) or its `auth/token/create` command |
+| `unifi_network_host` | `""` | Unifi Network controller/console address; provisions the bundled data source when set together with `unifi_network_api_key` |
+| `unifi_network_api_key` | `""` | A local Integration API key from the controller's Settings > Control Plane > Integrations |
+| `unifi_network_verify_ssl` | `false` | Verify the controller's TLS certificate; off by default for a typical self-signed console |
 
 ## Plugins
 
@@ -89,8 +99,9 @@ custom_plugins:
 The download is hashed before it is unpacked, and a mismatch is logged and
 not installed. `unsigned: true` adds the id to Grafana's
 `allow_loading_unsigned_plugins`, which is what a plugin Grafana has not
-signed needs to load. The SolarWinds SWIS, Technitium DNS and Music
-Assistant data sources are built into the image and need none of this.
+signed needs to load. The SolarWinds SWIS, Technitium DNS, Music
+Assistant and Unifi Network data sources are built into the image and
+need none of this.
 
 ## The terminal
 

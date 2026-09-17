@@ -12,6 +12,14 @@ Added a Music Assistant data source, built in the same way: player state
 JSON-RPC endpoint. New options `musicassistant_url` and
 `musicassistant_api_token` provision it automatically when both are set.
 
+Added a Unifi Network data source, built in the same way: connected
+clients, network devices, and derived WAN status from a controller's local
+Integration API, using the same base path, auth header, pagination and
+field candidates verified in `trooperthorn/ha_int_soc`. New options
+`unifi_network_host`, `unifi_network_api_key`, and
+`unifi_network_verify_ssl` provision it automatically when host and key
+are both set.
+
 ## 2026.09.16.1
 
 First release. Grafana 13.2.2 (OSS) behind Home Assistant Ingress only:

@@ -64,6 +64,9 @@ options:
   technitium_api_token: ""
   musicassistant_url: ""
   musicassistant_api_token: ""
+  unifi_network_host: ""
+  unifi_network_api_key: ""
+  unifi_network_verify_ssl: false
 
 schema:
   # Home Assistant usernames (the login name, as X-Remote-User-Name carries
@@ -103,3 +106,10 @@ schema:
   # when both are set; leave either empty to leave it unprovisioned.
   musicassistant_url: str
   musicassistant_api_token: password
+  # The bundled Unifi Network data source is provisioned automatically when
+  # both host and api key are set; leave either empty to leave it
+  # unprovisioned. verify_ssl defaults off, matching a typical self-signed
+  # local console.
+  unifi_network_host: str
+  unifi_network_api_key: password
+  unifi_network_verify_ssl: bool

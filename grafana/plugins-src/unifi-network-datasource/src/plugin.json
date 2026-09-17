@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "Unifi Network",
+  "id": "trooperthorn-unifinetwork-datasource",
+  "metrics": true,
+  "backend": true,
+  "executable": "gpx_unifi_network",
+  "info": {
+    "description": "Query connected clients, network devices, and WAN status from a Unifi Network controller's local Integration API.",
+    "author": {
+      "name": "Trooperthorn"
+    },
+    "keywords": ["datasource", "unifi", "network"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [],
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=12.3.0",
+    "plugins": []
+  }
+}

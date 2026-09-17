@@ -130,7 +130,7 @@ fi
 log_info "Roles: ${ADMIN_COUNT} administrator(s), default role for everyone else: ${DEFAULT_ROLE}."
 
 # --- Plugins: catalogue ids and hash-checked URLs into /data/plugins -----
-UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource,trooperthorn-musicassistant-datasource"
+UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource,trooperthorn-musicassistant-datasource,trooperthorn-unifinetwork-datasource"
 while IFS= read -r spec; do
     [ -n "$spec" ] || continue
     id="${spec%%@*}"
@@ -244,6 +244,26 @@ if [ -n "$MUSICASSISTANT_URL" ] && [ -n "$MUSICASSISTANT_API_TOKEN" ]; then
     log_info "Provisioned the Music Assistant data source (${MUSICASSISTANT_URL})."
 else
     rm -f "$MUSICASSISTANT_PROVISIONING"
+fi
+
+# --- Unifi Network data source provisioning --------------------------------
+# Both host and api key must be set or the bundled data source is left
+# unprovisioned; clearing either one removes the file so Grafana
+# deprovisions it too.
+UNIFI_NETWORK_PROVISIONING="/data/provisioning/datasources/unifinetwork.yaml"
+UNIFI_NETWORK_HOST="$(config_value 'unifi_network_host' '')"
+UNIFI_NETWORK_API_KEY="$(config_value 'unifi_network_api_key' '')"
+UNIFI_NETWORK_VERIFY_SSL="$(config_value 'unifi_network_verify_ssl' 'false')"
+if [ -n "$UNIFI_NETWORK_HOST" ] && [ -n "$UNIFI_NETWORK_API_KEY" ]; then
+    ( umask 077
+      sed -e "s|%%unifi_network_host%%|$(sed_escape "$UNIFI_NETWORK_HOST")|g" \
+          -e "s|%%unifi_network_api_key%%|$(sed_escape "$UNIFI_NETWORK_API_KEY")|g" \
+          -e "s|%%unifi_network_verify_ssl%%|$(sed_escape "$UNIFI_NETWORK_VERIFY_SSL")|g" \
+          /etc/grafana/provisioning-datasources/unifinetwork.yaml.template > "$UNIFI_NETWORK_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$UNIFI_NETWORK_PROVISIONING"
+    log_info "Provisioned the Unifi Network data source (${UNIFI_NETWORK_HOST})."
+else
+    rm -f "$UNIFI_NETWORK_PROVISIONING"
 fi
 
 # --- Access log rotation ---------------------------------------------------
