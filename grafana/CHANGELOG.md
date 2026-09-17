@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026.09.17.1
 
 Fixed: a `/data` bind mount that refuses ownership changes (rootless
 Docker/Podman without an idmapped mount, some network/virtualized
