@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026.09.17.2
 
 Fixed: the bundled AppArmor profile granted only read on the `/data` and
 `/run/grafana-app` directory entries themselves (`/data/ r,`), separate
