@@ -21,6 +21,13 @@ APP_VERSION="2026.09.16.1"   # keep in lockstep with config.yaml on every releas
 log_info()    { printf '[%s] INFO: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1"; }
 log_warning() { printf '[%s] WARNING: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1" >&2; }
 log_error()   { printf '[%s] ERROR: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1" >&2; }
+# Gated on the log_level option (set below, before it is first needed), not
+# on Grafana's own [log] level: this is the launcher's own diagnostic
+# output, for a problem in run.sh itself rather than in Grafana.
+log_debug() {
+    [ "${LOG_LEVEL:-info}" = "debug" ] || return 0
+    printf '[%s] DEBUG: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+}
 
 # A scalar option, or the default when absent or null.
 config_value() {
@@ -43,6 +50,29 @@ as_grafana() {
     setpriv --reuid="$GRAFANA_UID" --regid="$GRAFANA_GID" --clear-groups --inh-caps=-all "$@"
 }
 
+# At log_level: debug, dump the context around a failed ownership/permission
+# change on a path: who this process actually is, the path's own and its
+# parent's ownership/mode, what filesystem and mount options it sits on,
+# and this process's effective capabilities. This is exactly what
+# distinguishes the causes docs/operations.md lists (rootless Docker/Podman
+# without an idmapped mount vs. a network/virtualized filesystem vs. a
+# capability actually dropped) without guessing from the bare
+# "Permission denied" alone.
+debug_dump_path() {
+    local path="$1"
+    log_debug "-- ownership diagnostics for ${path} --"
+    log_debug "id: $(id 2>&1)"
+    log_debug "stat ${path}: $(stat -c 'owner=%u:%g mode=%a type=%F' "$path" 2>&1)"
+    local parent; parent="$(dirname -- "$path")"
+    log_debug "stat ${parent}: $(stat -c 'owner=%u:%g mode=%a type=%F' "$parent" 2>&1)"
+    if command -v findmnt >/dev/null 2>&1; then
+        log_debug "findmnt ${path}: $(findmnt -T "$path" -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1 | tr '\n' ' ')"
+    else
+        log_debug "mount entry: $(mount 2>&1 | grep -F " ${path} " || echo 'not found (path may be a subdirectory of a mounted volume)')"
+    fi
+    log_debug "capabilities: $(grep -E '^Cap(Eff|Prm|Bnd)' /proc/self/status 2>&1 | tr '\n' ' ')"
+}
+
 # chown -R one or more paths to the grafana user, tolerating a host/mount
 # that refuses ownership changes altogether (rootless Docker/Podman without
 # an idmapped mount, some virtualized or network filesystems used for a
@@ -58,10 +88,13 @@ chown_or_verify() {
     fi
     if as_grafana test -w "$1" -a -x "$1"; then
         log_warning "Could not chown ${1} and possibly others (${err##*: }); ${1} is already writable by the grafana user, continuing."
+        debug_dump_path "$1"
         return 0
     fi
     log_error "Could not chown ${1} (${err##*: }), and it is not already writable by uid ${GRAFANA_UID}."
     log_error "This container cannot fix ownership on this host/mount by itself. This usually means /data is a bind mount from a Docker mode or filesystem that refuses ownership changes (rootless Docker/Podman without an idmapped mount, some network or virtualized filesystem shares). From the host, either: chown -R 472:472 <the host path mapped to /data>, or use a plain Docker-managed named volume instead of a bind mount, or enable idmapped mounts for the bind mount."
+    log_error "Set log_level: debug and restart to see the full diagnostic (id, ownership/mode, mount, capabilities) this failure produced."
+    debug_dump_path "$1"
     exit 1
 }
 
@@ -78,6 +111,12 @@ if [ ! -f "$OPTIONS_FILE" ]; then
     log_error "${OPTIONS_FILE} is missing; this container is meant to be started by the Home Assistant Supervisor."
     exit 1
 fi
+
+# Read once, early: log_debug (and anything else in this script) needs it
+# from the very first thing that can go wrong, not just the render() step
+# further down that used to be the only reader.
+LOG_LEVEL="$(config_value 'log_level' 'info')"
+log_debug "log_level is debug; the launcher's own diagnostics (not just Grafana's) are on for this start."
 
 # --- /data layout, owned by the grafana user ------------------------------
 # The Supervisor mounts /data root-owned; whatever its mode, the grafana user
@@ -219,7 +258,8 @@ done
 
 # --- Render the configuration --------------------------------------------
 ALLOW_EMBEDDING="$(config_value 'allow_embedding' 'false')"
-LOG_LEVEL="$(config_value 'log_level' 'info')"
+# LOG_LEVEL was already read above, right after the options file was found,
+# so log_debug works from the very first thing that can go wrong.
 TERMINAL_ENABLED="$(config_value 'terminal_enabled' 'false')"
 TERMINAL_FLAG=0; [ "$TERMINAL_ENABLED" = "true" ] && TERMINAL_FLAG=1
 

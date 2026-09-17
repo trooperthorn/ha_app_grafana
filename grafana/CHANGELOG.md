@@ -7,7 +7,10 @@ Docker/Podman without an idmapped mount, some network/virtualized
 filesystem shares) used to make `run.sh` exit immediately on `chown` with
 nothing but "Permission denied", which the Supervisor then restart-looped
 forever. It now continues when the path is already writable by the
-grafana user, and otherwise fails once with a diagnostic. See
+grafana user, and otherwise fails once with a diagnostic. With
+`log_level: debug`, that same failure also prints the launcher's own
+diagnostics (id, path/parent ownership and mode, mount entry, effective
+capabilities) rather than only Grafana's own debug logging. See
 docs/operations.md.
 
 Added a Technitium DNS Server data source, built into the image the same

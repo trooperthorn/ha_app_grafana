@@ -192,6 +192,19 @@ diagnostic naming the likely cause and the host-side fixes (chown the host
 path, use a named volume instead of a bind mount, or an idmapped mount).
 See docs/operations.md.
 
+The owner was running with `log_level: debug` when this happened and asked
+that the launcher use that setting for its own diagnostics, not only
+Grafana's. `run.sh` now reads `log_level` immediately after finding
+`options.json`, before anything else can fail, and a new `log_debug`/
+`debug_dump_path` pair (gated on `log_level: debug`, independent of
+Grafana's own `[log]` level) prints `id`, the failing path's and its
+parent's owner/mode, its mount entry (source, filesystem, options), and
+this process's effective capabilities whenever `chown_or_verify` cannot
+chown a path, whether or not the fallback recovers it. This is what turns
+"a mount refused chown" into which of rootless Docker/Podman, a
+capability actually dropped, or a network/virtualized filesystem it was,
+without asking the reporter to attach a debugger.
+
 ## 2026-09-16: Grafana's own binaries excluded from the scan by path
 
 The first image scan failed on High advisories compiled into Grafana's

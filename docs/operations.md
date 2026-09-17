@@ -29,6 +29,15 @@ mapped to /data>`, switch to a plain Docker-managed named volume instead
 of a bind mount, or enable idmapped mounts for the bind mount (`docker run
 --mount type=bind,...,idmap=uids=...` or the Podman/Compose equivalent).
 
+Set `log_level: debug` and restart to see exactly what the launcher itself
+found: `id` (who the process actually is), `stat` on the path and its
+parent (current owner/mode), the mount entry it sits on (source,
+filesystem, mount options), and the process's effective capabilities. This
+is the launcher's own diagnostic, separate from Grafana's `[log]` level,
+and only this specific failure prints it; it does not turn on verbose
+logging generally. Look for the `DEBUG:` lines around `-- ownership
+diagnostics for /data --` in the app log.
+
 ## Changing roles
 
 Edit `admin_users`, `editor_users` or `default_role` and restart the app.
