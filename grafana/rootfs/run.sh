@@ -125,7 +125,7 @@ fi
 log_info "Roles: ${ADMIN_COUNT} administrator(s), default role for everyone else: ${DEFAULT_ROLE}."
 
 # --- Plugins: catalogue ids and hash-checked URLs into /data/plugins -----
-UNSIGNED="trooperthorn-swis-datasource"
+UNSIGNED="trooperthorn-swis-datasource,trooperthorn-technitiumdns-datasource"
 while IFS= read -r spec; do
     [ -n "$spec" ] || continue
     id="${spec%%@*}"
@@ -206,6 +206,26 @@ render() {
 chown "$GRAFANA_UID:$GRAFANA_GID" "$RUN_DIR/grafana.ini"
 render /etc/nginx/nginx.conf "$RUN_DIR/nginx.conf"
 chmod 0644 "$RUN_DIR/nginx.conf"
+
+# --- Technitium DNS data source provisioning -------------------------------
+# Both options must be set or the bundled data source is left unprovisioned;
+# clearing either one removes the file so Grafana deprovisions it too.
+TECHNITIUM_PROVISIONING="/data/provisioning/datasources/technitium.yaml"
+TECHNITIUM_URL="$(config_value 'technitium_url' '')"
+TECHNITIUM_API_TOKEN="$(config_value 'technitium_api_token' '')"
+if [ -n "$TECHNITIUM_URL" ] && [ -n "$TECHNITIUM_API_TOKEN" ]; then
+    # sed's own delimiter and its "&" backreference both need escaping in an
+    # operator-supplied value before it goes on the replacement side.
+    sed_escape() { printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'; }
+    ( umask 077
+      sed -e "s|%%technitium_url%%|$(sed_escape "$TECHNITIUM_URL")|g" \
+          -e "s|%%technitium_api_token%%|$(sed_escape "$TECHNITIUM_API_TOKEN")|g" \
+          /etc/grafana/provisioning-datasources/technitium.yaml.template > "$TECHNITIUM_PROVISIONING" )
+    chown "$GRAFANA_UID:$GRAFANA_GID" "$TECHNITIUM_PROVISIONING"
+    log_info "Provisioned the Technitium DNS data source (${TECHNITIUM_URL})."
+else
+    rm -f "$TECHNITIUM_PROVISIONING"
+fi
 
 # --- Access log rotation ---------------------------------------------------
 RETENTION="$(config_value 'access_log_retention_days' '90')"

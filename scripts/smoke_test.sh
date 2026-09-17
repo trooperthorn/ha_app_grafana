@@ -83,6 +83,23 @@ if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-swis-datasource" | grep -qi 
 fi
 echo "  ok: plugin registered"
 
+echo "== bundled Technitium DNS plugin"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/plugins/trooperthorn-technitiumdns-datasource/settings > "$WORK/technitium_plugin.json" || true
+grep -q '"id":"trooperthorn-technitiumdns-datasource"' "$WORK/technitium_plugin.json" || fail "plugin settings not served: $(cat "$WORK/technitium_plugin.json")"
+grep -q '"type":"datasource"' "$WORK/technitium_plugin.json" || fail "plugin is not a data source: $(cat "$WORK/technitium_plugin.json")"
+# Same proof as SWIS: point it at a host that cannot answer and let the Go
+# backend's own health check fail, which no frontend-only plugin could do.
+j -X POST -H 'Content-Type: application/json' -H 'X-Remote-User-Name: sean' \
+    -d '{"name":"technitium-smoke","type":"trooperthorn-technitiumdns-datasource","access":"proxy","uid":"technitium-smoke","jsonData":{"url":"http://technitium.invalid:5380"},"secureJsonData":{"apiToken":"smoke"}}' \
+    http://127.0.0.1:1337/api/datasources > "$WORK/technitium_ds.json" || true
+grep -q '"uid":"technitium-smoke"' "$WORK/technitium_ds.json" || fail "could not create a Technitium data source: $(cat "$WORK/technitium_ds.json")"
+j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/datasources/uid/technitium-smoke/health > "$WORK/technitium_health.json" || true
+grep -q "calling technitium" "$WORK/technitium_health.json" || fail "the plugin backend did not answer the health check: $(cat "$WORK/technitium_health.json")"
+if docker logs "$NAME" 2>&1 | grep -i "trooperthorn-technitiumdns-datasource" | grep -qi "problem with signature"; then
+    fail "Grafana refused the bundled Technitium plugin's signature"
+fi
+echo "  ok: plugin registered"
+
 echo "== terminal gate"
 expect 403 -H 'X-Remote-User-Name: ed' http://127.0.0.1:1337/terminal/
 expect 200 -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/terminal/
@@ -115,6 +132,7 @@ echo "  ok"
 
 echo "== bundled plugin path"
 docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/gpx_swis_linux_amd64 || fail "SWIS backend is not under /opt/grafana-app"
+docker exec "$NAME" test -x /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource/gpx_technitium_dns_linux_amd64 || fail "Technitium backend is not under /opt/grafana-app"
 echo "  Grafana's own plugins-bundled directory holds: $(docker exec "$NAME" ls /usr/share/grafana/plugins-bundled 2>/dev/null || echo '(absent)')"
 
 echo "== state lives under /data, nothing downloaded"

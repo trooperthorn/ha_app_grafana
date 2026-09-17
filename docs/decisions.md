@@ -109,6 +109,23 @@ test green: the eleven commits under `apps/ha_app_grafana/` became this
 repository's history, on top of the initial commit that carries the MIT
 license. The staged copy was removed from OrionGuides.
 
+## 2026-09-17: Technitium DNS plugin sourced in this repository, not a pinned external commit
+
+The SWIS plugin is built from a pinned commit of `SolarWinds_OrionGuides`
+because that plugin's source already lives there, developed alongside the
+schema documentation it depends on. No equivalent repository exists for a
+Technitium DNS data source, so its source lives directly in this
+repository at `grafana/plugins-src/technitium-datasource` and the
+Dockerfile builds it with `COPY` instead of a `git fetch` to a commit. An
+image build is still the whole provenance; the difference is that this
+repository's own history is the pin, rather than another repository's
+commit hash. Scaffolded with `@grafana/create-plugin` (Go backend using
+`grafana-plugin-sdk-go`, calling only `GET /api/dashboard/stats/get` with a
+non-expiring API token) and trimmed of the generator's own CI, Docker dev
+environment and Playwright e2e scaffolding, none of which this repository
+needs a second copy of. Unifi Network, Unifi Protect, and Music Assistant
+data sources, if built, are expected to follow the same pattern.
+
 ## 2026-09-16: Grafana's own binaries excluded from the scan by path
 
 The first image scan failed on High advisories compiled into Grafana's

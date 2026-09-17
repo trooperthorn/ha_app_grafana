@@ -24,6 +24,11 @@ container. The reasoning is in the repository's `docs/security.md` and
    no subject alternative names). Save & test reports the engine it found.
 4. Import the sample dashboard from the plugin's `dashboards/` directory, or
    build your own with the example queries in the query editor.
+5. To use the bundled Technitium DNS data source, set `technitium_url` (the
+   DNS server's own web console origin, e.g. `http://192.168.1.10:5380`)
+   and `technitium_api_token` (a non-expiring token from Administration,
+   Sessions, Create API Token, in the Technitium console) and restart. The
+   data source is provisioned automatically, named "Technitium DNS".
 
 ## Who can do what
 
@@ -53,6 +58,8 @@ request after authenticating the session; a browser cannot supply its own.
 | `custom_plugins` | `[]` | Plugins from a URL, each with the zip's SHA-256; see below |
 | `log_level` | `info` | Grafana's own log level |
 | `access_log_retention_days` | `90` | Daily rotations of the access log to keep |
+| `technitium_url` | `""` | Technitium DNS Server web console origin; provisions the bundled data source when set together with `technitium_api_token` |
+| `technitium_api_token` | `""` | A non-expiring API token from the Technitium console (Administration, Sessions, Create API Token) |
 
 ## Plugins
 
@@ -74,8 +81,8 @@ custom_plugins:
 The download is hashed before it is unpacked, and a mismatch is logged and
 not installed. `unsigned: true` adds the id to Grafana's
 `allow_loading_unsigned_plugins`, which is what a plugin Grafana has not
-signed needs to load. The SolarWinds SWIS data source is built into the
-image and needs none of this.
+signed needs to load. The SolarWinds SWIS and Technitium DNS data sources
+are built into the image and need none of this.
 
 ## The terminal
 

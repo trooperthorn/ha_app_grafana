@@ -16,6 +16,10 @@
 #   the SolarWinds SWIS data source plugin, built here from the pinned
 #   OrionGuides commit so the image carries its own provenance and no
 #   plugin is downloaded at run time.
+#   the Technitium DNS data source plugin, built here from
+#   grafana/plugins-src/technitium-datasource (this repository's own
+#   source, since no separate upstream repository holds it), for the same
+#   provenance reason.
 #
 # The Ubuntu variant rather than Alpine is deliberate: nginx-light and ttyd
 # are Ubuntu packages (nginx-light is the same lean nginx the Technitium DNS
@@ -50,7 +54,27 @@ COPY --from=swis-backend /src/apps/grafana-swis-datasource /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
-# ---- Stage 3: the app image.
+# ---- Stage 3: the Technitium DNS data source backend, from this repo's own source.
+FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS technitium-backend
+ARG BUILD_ARCH
+COPY plugins-src/technitium-datasource /src
+WORKDIR /src
+RUN set -eu; \
+    case "${BUILD_ARCH:-$(uname -m)}" in \
+        amd64|x86_64) goarch=amd64 ;; \
+        aarch64|arm64) goarch=arm64 ;; \
+        *) echo "unsupported architecture ${BUILD_ARCH:-$(uname -m)}" >&2; exit 1 ;; \
+    esac; \
+    CGO_ENABLED=0 GOOS=linux GOARCH="${goarch}" \
+        go build -trimpath -ldflags="-s -w" -o "/out/gpx_technitium_dns_linux_${goarch}" ./pkg
+
+# ---- Stage 4: the Technitium DNS plugin frontend bundle, from the same source.
+FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS technitium-frontend
+COPY --from=technitium-backend /src /src
+WORKDIR /src
+RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
+
+# ---- Stage 5: the app image.
 FROM grafana/grafana:13.2.2-ubuntu@sha256:9a68a82ec38931e1baacee5d471cf74aa42565eb49554caa5290663529de6941
 
 USER root
@@ -88,12 +112,16 @@ RUN apt-get update \
 # bundled_plugins at this directory.
 COPY --from=swis-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource
 COPY --from=swis-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/
+COPY --from=technitium-frontend /src/dist /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource
+COPY --from=technitium-backend /out/ /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource/
 RUN chmod 0755 /opt/grafana-app/plugins-bundled/trooperthorn-swis-datasource/gpx_swis_* \
+        /opt/grafana-app/plugins-bundled/trooperthorn-technitiumdns-datasource/gpx_technitium_dns_* \
     && chown -R root:root /opt/grafana-app
 
 COPY rootfs /
 RUN chmod 0755 /run.sh /usr/local/bin/grafana_term_open \
-    && chmod 0644 /etc/nginx/nginx.conf /etc/grafana/grafana.ini.template /etc/profile.d/grafana_terminal.sh
+    && chmod 0644 /etc/nginx/nginx.conf /etc/grafana/grafana.ini.template /etc/profile.d/grafana_terminal.sh \
+        /etc/grafana/provisioning-datasources/technitium.yaml.template
 
 ARG BUILD_VERSION
 ARG BUILD_ARCH

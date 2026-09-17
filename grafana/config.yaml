@@ -60,6 +60,8 @@ options:
   custom_plugins: []
   log_level: "info"
   access_log_retention_days: 90
+  technitium_url: ""
+  technitium_api_token: ""
 
 schema:
   # Home Assistant usernames (the login name, as X-Remote-User-Name carries
@@ -91,3 +93,7 @@ schema:
       unsigned: bool?
   log_level: list(debug|info|warn|error)
   access_log_retention_days: int(1,3650)
+  # The bundled Technitium DNS data source is provisioned automatically
+  # when both are set; leave either empty to leave it unprovisioned.
+  technitium_url: str
+  technitium_api_token: password
