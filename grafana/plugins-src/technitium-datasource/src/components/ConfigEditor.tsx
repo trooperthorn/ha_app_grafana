@@ -19,6 +19,16 @@ export function ConfigEditor(props: Props) {
     });
   };
 
+  const onQueryLogsAppNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onOptionsChange({
+      ...options,
+      jsonData: {
+        ...jsonData,
+        queryLogsAppName: event.target.value,
+      },
+    });
+  };
+
   // Secure field: sent to the backend only, never read back into the browser.
   const onAPITokenChange = (event: ChangeEvent<HTMLInputElement>) => {
     onOptionsChange({
@@ -69,6 +79,20 @@ export function ConfigEditor(props: Props) {
           width={40}
           onReset={onResetAPIToken}
           onChange={onAPITokenChange}
+        />
+      </InlineField>
+      <InlineField
+        label="Query Logs app name"
+        labelWidth={20}
+        interactive
+        tooltip='Only needed if the "Query Logs" DNS app was installed under a different name than the store default'
+      >
+        <Input
+          id="config-editor-query-logs-app-name"
+          onChange={onQueryLogsAppNameChange}
+          value={jsonData.queryLogsAppName}
+          placeholder="Query Logs (Sqlite)"
+          width={40}
         />
       </InlineField>
     </>

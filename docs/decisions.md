@@ -279,3 +279,52 @@ directly from `risk.py`'s `RiskEngine._compute_user_risk` /
 `async_compute_posture` and `audit.py`'s `AuditLog.async_log` record
 shape - the same "read the real source, do not guess the schema" standard
 every other bundled plugin here was held to.
+
+## 2026-09-17: Technitium query logs read over its own HTTP API, not a mounted SQLite file
+
+A user who already runs Technitium's "Query Logs (Sqlite)" DNS app (or its
+MySQL, PostgreSQL, or SQL Server equivalents) asked whether this
+repository's Technitium plugin could read that stored history directly,
+instead of standing up InfluxDB for DNS query history. Reading the
+`.sqlite` file itself was ruled out: this app has nothing of the host
+filesystem mapped in, on purpose, and adding a network file mount just for
+one plugin would be a worse hole than the problem it solves.
+
+Technitium's own web API already exposes it, confirmed against
+`DnsServerCore/WebServiceLogsApi.cs` and `Apps/QueryLogsSqliteApp/App.cs`
+in `TechnitiumSoftware/DnsServer`: any installed DNS app implementing
+`IDnsQueryLogs` (the Sqlite app included) is queryable at
+`GET /api/logs/query?name=<app>&classPath=<class>&...`, paginated, with
+`start`/`end`/`clientIpAddress`/`qname` filters, over the same token this
+plugin already authenticates dashboard stats with. So the Technitium
+plugin gained a "Query logs" series that pages through that endpoint
+across the dashboard's own time range (capped at 10,000 rows per query, to
+keep a wide range against a busy resolver from pulling the whole log) -
+the same "same host, same token, no new infrastructure" standard the
+Unifi and Home Assistant plugins were held to. The app's class path
+(`QueryLogsSqlite.App`) is fixed by its source and not configurable; its
+display name is, hence `technitium_querylogs_app_name` for a server that
+renamed it away from the store default.
+
+## 2026-09-17: the /data ownership failure was this app's own AppArmor profile, not the host
+
+A user hit the exact crash-loop the previous fix added diagnostics for,
+with `log_level: debug` on. Those diagnostics did their job: normal
+ownership (root:root, mode 755), a real ext4 bind mount, and `CAP_CHOWN`
+present in capabilities - nothing consistent with the "rootless
+Docker/Podman without an idmapped mount" explanation the error message
+offered. That ruled the host out and pointed at this container's own
+AppArmor profile instead.
+
+`grafana/apparmor.txt` granted `/data/ r,` and `/run/grafana-app/ r,` -
+read-only on those two directory *entries* - while `/data/** rwk,` and
+`/run/grafana-app/** rwk,` covered only their contents. AppArmor mediates
+`chown` as a write on the path being chowned, and `run.sh` chowns both
+directories directly (`chown_or_verify /data`, and `/run/grafana-app` via
+`$RUN_DIR` in the same call), not only what is inside them. Every start
+was denied by this app's own profile, on every host, regardless of the
+actual bind mount - the earlier fix's fallback-and-diagnose behavior kept
+it from crash-looping forever, but it could never actually recover here.
+Both directory entries are now `rw`. The profile note at its head warns
+this was "NOT verified against a live Supervisor" for exactly this
+reason: the CI smoke test's plain `docker run` never attaches it.

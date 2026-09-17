@@ -89,6 +89,50 @@ func TestQueryDataTopClients(t *testing.T) {
 	}
 }
 
+func queryLogsTestServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/logs/query" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("pageNumber") == "2" {
+			_, _ = w.Write([]byte(`{"status":"ok","pageNumber":2,"totalPages":2,"totalEntries":1,"entries":[
+				{"rowNumber":1,"timestamp":"2026-01-01T00:01:00Z","clientIpAddress":"192.168.1.6","protocol":"Udp","responseType":"Cached","rcode":"NoError","qname":"example.org","qtype":"A","qclass":"IN","answer":"93.184.216.34"}
+			]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"ok","pageNumber":1,"totalPages":2,"totalEntries":1,"entries":[
+			{"rowNumber":1,"timestamp":"2026-01-01T00:00:00Z","clientIpAddress":"192.168.1.5","protocol":"Udp","responseType":"Recursive","rcode":"NoError","qname":"example.com","qtype":"A","qclass":"IN","answer":"93.184.216.34"}
+		]}`))
+	}))
+}
+
+func TestQueryDataQueryLogs(t *testing.T) {
+	srv := queryLogsTestServer(t)
+	defer srv.Close()
+
+	ds := Datasource{client: newTechnitiumClient(srv.URL, "test-token")}
+
+	qJSON, _ := json.Marshal(queryModel{Series: "queryLogs"})
+
+	resp, err := ds.QueryData(
+		context.Background(),
+		&backend.QueryDataRequest{Queries: []backend.DataQuery{{RefID: "A", JSON: qJSON}}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resp.Responses["A"].Error; err != nil {
+		t.Fatalf("query A failed: %v", err)
+	}
+	frame := resp.Responses["A"].Frames[0]
+	if frame.Rows() != 2 {
+		t.Fatalf("expected 2 rows across both pages, got %d", frame.Rows())
+	}
+}
+
 func TestCheckHealthMissingSettings(t *testing.T) {
 	ds := Datasource{}
 	res, err := ds.CheckHealth(context.Background(), &backend.CheckHealthRequest{

@@ -13,14 +13,31 @@
 
 ## "chown: changing ownership of '/data': Permission denied" at start
 
-Under the Supervisor `/data` is a fresh, root-owned mount, and `run.sh`'s
-`chown` of it always succeeds. Outside the Supervisor (a plain `docker run`
-or `docker compose` with `/data` bind-mounted from the host), this can fail
-on a Docker/Podman mode or filesystem that refuses to let a container
-change file ownership at all: rootless Docker/Podman without an idmapped
-bind mount, or some network or virtualized filesystem shares. Since
-2026-09-17, `run.sh` no longer aborts the moment this happens (which used
-to restart-loop with nothing but that one line repeated): it checks
+This can come from either of two independent causes; check the second one
+first if the app runs under the Supervisor, since that is where it
+actually turns up.
+
+Fixed 2026-09-17: this app's own `apparmor.txt` granted only `r` on the
+`/data` and `/run/grafana-app` directory *entries* themselves, separate
+from the `rwk` granted on their contents. `run.sh` chowns both directories
+directly, not only what is inside them, so the Supervisor's own AppArmor
+enforcement denied every start regardless of the host - normal ownership,
+a real bind mount, `CAP_CHOWN` present, and still `Permission denied`. A
+plain `docker run` never attaches an AppArmor profile at all, which is why
+this only ever showed up under the Supervisor. Update to a release with
+the fix (both directories are `rw` in the profile) rather than working
+around it; if `journalctl _TRANSPORT="audit" -g 'apparmor="DENIED"' -g
+'profile="grafana"'` on the host still shows a chown denial on `/data` or
+`/run/grafana-app` after updating, something is loading a stale profile -
+see "AppArmor denials" below.
+
+Outside the Supervisor (a plain `docker run` or `docker compose` with
+`/data` bind-mounted from the host, no AppArmor profile in play), this can
+still fail on a Docker/Podman mode or filesystem that refuses to let a
+container change file ownership at all: rootless Docker/Podman without an
+idmapped bind mount, or some network or virtualized filesystem shares.
+Since 2026-09-17, `run.sh` no longer aborts the moment this happens (which
+used to restart-loop with nothing but that one line repeated): it checks
 whether the path is already writable by the grafana user (uid/gid 472) and
 continues if so, and otherwise exits once with a diagnostic naming the
 likely cause. If you hit the diagnostic rather than a clean start, fix the
@@ -36,7 +53,8 @@ filesystem, mount options), and the process's effective capabilities. This
 is the launcher's own diagnostic, separate from Grafana's `[log]` level,
 and only this specific failure prints it; it does not turn on verbose
 logging generally. Look for the `DEBUG:` lines around `-- ownership
-diagnostics for /data --` in the app log.
+diagnostics for /data --` in the app log. Normal-looking ownership and
+capabilities there point at AppArmor (above), not the host.
 
 ## Changing roles
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { InlineField, Select, Stack } from '@grafana/ui';
+import { InlineField, Input, Select, Stack } from '@grafana/ui';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { DataSource } from '../datasource';
 import { DEFAULT_QUERY, TechnitiumDataSourceOptions, TechnitiumQuery, TechnitiumSeries, TechnitiumStatType } from '../types';
@@ -19,6 +19,11 @@ const SERIES: Array<SelectableValue<TechnitiumSeries>> = [
   { label: 'Top clients', value: 'topClients', description: 'Table of client name/hits' },
   { label: 'Top domains', value: 'topDomains', description: 'Table of domain name/hits' },
   { label: 'Top blocked domains', value: 'topBlockedDomains', description: 'Table of blocked domain name/hits' },
+  {
+    label: 'Query logs',
+    value: 'queryLogs',
+    description: 'Per-request log from the installed Query Logs app, over the dashboard time range',
+  },
 ];
 
 export function QueryEditor({ query, onChange, onRunQuery }: Props) {
@@ -34,6 +39,36 @@ export function QueryEditor({ query, onChange, onRunQuery }: Props) {
     onChange({ ...query, series: selected.value! });
     onRunQuery();
   };
+
+  const onQNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({ ...query, qname: event.target.value });
+  };
+
+  const onClientIPChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({ ...query, clientIpAddress: event.target.value });
+  };
+
+  if (series === 'queryLogs') {
+    return (
+      <Stack gap={0}>
+        <InlineField label="Series" labelWidth={16} tooltip="Which part of the dashboard stats response to return">
+          <Select options={SERIES} value={series} onChange={onSeriesChange} width={28} />
+        </InlineField>
+        <InlineField label="Domain" labelWidth={16} tooltip="Filter to a domain name (optional); requires the Query Logs app">
+          <Input value={query.qname ?? ''} placeholder="example.com" width={24} onChange={onQNameChange} onBlur={onRunQuery} />
+        </InlineField>
+        <InlineField label="Client IP" labelWidth={16} tooltip="Filter to a client address (optional)">
+          <Input
+            value={query.clientIpAddress ?? ''}
+            placeholder="192.168.1.5"
+            width={20}
+            onChange={onClientIPChange}
+            onBlur={onRunQuery}
+          />
+        </InlineField>
+      </Stack>
+    );
+  }
 
   return (
     <Stack gap={0}>

@@ -94,10 +94,12 @@ profile grafana flags=(attach_disconnected,mediate_deleted) {
   /usr/local/share/** r,
   /opt/grafana-app/** r,
 
-  # Writable trees, and only these.
-  /data/ r,
+  # Writable trees, and only these. /data/ itself needs w, not just r: the
+  # launcher chowns the directory entry /data, not only its contents, and
+  # AppArmor mediates that as a write on /data itself.
+  /data/ rw,
   /data/** rwk,
-  /run/grafana-app/ r,
+  /run/grafana-app/ rw,
   /run/grafana-app/** rwk,
   /tmp/ r,
   /tmp/** rwk,

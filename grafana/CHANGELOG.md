@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+Fixed: the bundled AppArmor profile granted only read on the `/data` and
+`/run/grafana-app` directory entries themselves (`/data/ r,`), separate
+from the `rwk` granted on their contents (`/data/** rwk,`). `run.sh` chowns
+those two directories directly, not only what is inside them, so every
+start was denied by the app's own profile and misreported as a host/mount
+ownership problem - the previous fix's diagnostics were themselves correct
+(normal ownership, `CAP_CHOWN` present) but nothing pointed at AppArmor
+specifically. Both directory entries are now `rw`.
+
+Added a "Query logs" series to the Technitium DNS data source: reads the
+per-request log stored by the "Query Logs (Sqlite)" DNS app (or its MySQL,
+PostgreSQL, or SQL Server equivalents, which share the same API) over
+Technitium's `/api/logs/query` endpoint, using the dashboard's own time
+range and optional domain/client filters, so an existing installation does
+not need a separate time series database for DNS query history. New option
+`technitium_querylogs_app_name` is only needed if that app was installed
+under a non-default name.
+
 ## 2026.09.17.1
 
 Fixed: a `/data` bind mount that refuses ownership changes (rootless
