@@ -124,11 +124,17 @@ the launcher `chown`, `fowner`, `dac_override`, `setuid`, `setgid` and
 `dac_read_search`, `mknod`, `sys_chroot`, mounts and ptrace, and limits
 network families to inet and inet6 stream and dgram.
 
-It is **enforced and unverified**: only the Supervisor attaches it, and no
-Supervisor has run this app yet. The known failure mode is fail-closed: a
-path Grafana or a plugin needs that is not listed produces a permission
-error rather than a degraded run. The recovery procedure is in
-[operations.md](operations.md), "AppArmor denials".
+It is **enforced and unverified**: only the Supervisor attaches it, and CI's
+smoke test (a plain `docker run`) never does. The known failure mode is
+fail-closed: a path Grafana or a plugin needs that is not listed produces
+a permission error rather than a degraded run. A denial is logged to the
+host's kernel audit log under enforce mode the same as it would be in
+`complain` mode - only whether the operation is blocked differs, not
+whether it is logged - so it is visible in Home Assistant's own UI at
+Settings > System > Logs > Host without editing the profile or needing
+host shell access first. The recovery procedure is in
+[operations.md](operations.md), "AppArmor denials". See docs/decisions.md
+for why complain mode is not this repository's default diagnostic step.
 
 ## What the terminal can and cannot do
 

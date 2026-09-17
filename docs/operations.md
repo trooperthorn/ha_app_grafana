@@ -118,17 +118,28 @@ try. Unmap the port to turn it off.
 
 If the app fails to start after installation, or Grafana logs
 `permission denied` for a path under `/usr/share/grafana`, `/data` or
-`/tmp`, check the host:
+`/tmp`, look for AppArmor denials without needing host SSH access at all:
+open Settings > System > Logs in Home Assistant, switch to the "Host" tab,
+and search for `DENIED` or `apparmor`. Each line names the operation and
+path.
+
+If you do have host shell access (an SSH add-on, or a non-HAOS install),
+the equivalent is:
 
 ```bash
 journalctl _TRANSPORT="audit" -g 'apparmor="DENIED"' -g 'profile="grafana"'
 ```
 
-Each line names the operation and path. Add the narrowest rule that covers
-it to `grafana/apparmor.txt`, or, to collect several at once, add
-`complain` to the profile flags (`flags=(attach_disconnected,mediate_deleted,complain)`),
-reinstall, use the app, read the log, then remove `complain`. Do not widen
-to `file,` to make a symptom go away.
+Add the narrowest rule that covers what a denial names to
+`grafana/apparmor.txt`. If the app will not start at all (so there is no
+running instance to generate denials from a normal request), add
+`complain` to the profile flags
+(`flags=(attach_disconnected,mediate_deleted,complain)`) first: this logs
+what the profile would deny instead of enforcing it, letting the app
+actually start so its real behavior generates the denials to fix, visible
+in the same Host log tab. Reinstall, reproduce the failure, read the log,
+fix the narrowest rule each denial names, then remove `complain` to
+restore enforcement. Do not widen to `file,` to make a symptom go away.
 
 ## Backup and restore
 

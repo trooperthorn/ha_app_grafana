@@ -353,3 +353,37 @@ build noticing. A future SWIS change still has to be brought over by
 copying it into `plugins-src/swis-datasource` and committing it here,
 the same as any other bundled plugin's changes are - there is no longer
 an automatic link to `SolarWinds_OrionGuides` at all.
+
+## 2026-09-17: diagnosing an AppArmor denial does not need complain mode or host SSH
+
+After the `/data`/`/run/grafana-app` chown fix (above), a user's next start
+hit a new failure: Grafana itself exits with `Error: ✗ unable to open
+database file (14)` (SQLite's `SQLITE_CANTOPEN`), consistently right after
+the main database connects and runs its migrations successfully, right
+after the `oss-ac-basic-role-seeder` background job finishes. Reading
+Grafana 13.2.2's own source (`pkg/storage/unified/sql/db/dbimpl/dbimpl.go`)
+confirms its newer unified-storage subsystem opens a second, independent
+SQLite connection to the same `grafana.db` rather than reusing the first
+one; that second open is what fails, timed suspiciously close to the
+AppArmor profile this repository had just changed, but this could not be
+confirmed from Grafana's own log alone (no stack trace, no subsystem name
+on the fatal line), and this development environment has no AppArmor
+kernel module and no Docker daemon at all, so the profile cannot be
+loaded or tested here - `apparmor_parser`/`aa-status` do not exist and
+`/sys/module/apparmor` is absent.
+
+The profile's own header pointed at `journalctl _TRANSPORT="audit" -g
+'apparmor="DENIED"'` on the host to confirm a denial, which a Home
+Assistant OS install does not expose without an SSH add-on - asking for
+it repeatedly wasted the user's time for no actionable result. The first
+fix considered was switching the profile to `complain` mode so denials
+would surface in Home Assistant's own Settings > System > Logs > Host tab
+instead. That was the wrong fix: AppArmor writes a denial to the kernel
+audit log under **enforce** mode too, not only in `complain` - `complain`
+only changes whether the operation is *blocked*, not whether it is
+*logged*. So the same Host log tab already shows a denial on the
+currently enforced profile, with no profile change, no restart, and no
+temporary security reduction needed at all. `docs/operations.md`'s
+"AppArmor denials" section and `docs/security.md`'s profile section now
+lead with that UI path (checked under enforce mode) and keep `journalctl`
+only as the equivalent for an install with host shell access.
