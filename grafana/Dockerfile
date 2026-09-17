@@ -45,7 +45,7 @@ RUN set -eu; \
         go build -trimpath -ldflags="-s -w" -o "/out/gpx_swis_linux_${goarch}" ./pkg
 
 # ---- Stage 2: the plugin frontend bundle, from the same commit.
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS swis-frontend
+FROM node:26-bookworm-slim@sha256:cd9f682fa2885cd1056e830424764158570061c59736a1da836bc3d73df095ae AS swis-frontend
 COPY --from=swis-backend /src/apps/grafana-swis-datasource /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
