@@ -16,7 +16,7 @@ RUN_DIR="/run/grafana-app"
 SECRETS_DIR="/data/secrets"
 GRAFANA_UID=472
 GRAFANA_GID=472
-APP_VERSION="2026.09.17.4"   # keep in lockstep with config.yaml on every release
+APP_VERSION="2026.09.17.5"   # keep in lockstep with config.yaml on every release
 
 log_info()    { printf '[%s] INFO: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1"; }
 log_warning() { printf '[%s] WARNING: %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')" "$1" >&2; }
