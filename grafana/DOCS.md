@@ -25,7 +25,13 @@ container. The reasoning is in the repository's `docs/security.md` and
 4. Import the sample dashboard from the plugin's `dashboards/` directory, or
    build your own with the example queries in the query editor.
 5. To use the bundled Technitium DNS data source, set `technitium_url` (the
-   DNS server's own web console origin, e.g. `http://192.168.1.10:5380`)
+   DNS server's own web console origin). This app has no host networking,
+   so a server on the LAN is given by its LAN address, e.g.
+   `http://192.168.1.10:5380`, but a Technitium app on this same Home
+   Assistant host is only reachable by its Supervisor-network hostname,
+   e.g. `http://814681ae-technitium-dns:5380` (the repository hash, then
+   the app slug with underscores as dashes; the hash is the one in the
+   app's own Ingress URL)
    and `technitium_api_token` (a non-expiring token from Administration,
    Sessions, Create API Token, in the Technitium console) and restart. The
    data source is provisioned automatically, named "Technitium DNS". If the
@@ -36,7 +42,10 @@ container. The reasoning is in the repository's `docs/security.md` and
    database. Set `technitium_querylogs_app_name` only if that app was
    installed under a different name than the store default.
 6. To use the bundled Music Assistant data source, set `musicassistant_url`
-   (the server's own web console origin, e.g. `http://192.168.1.20:8095`)
+   (the server's own web console origin, e.g. `http://192.168.1.20:8095`
+   on the LAN; the Music Assistant app on this same host uses host
+   networking and has no Supervisor-network name, so reach it through the
+   Supervisor bridge gateway, `http://172.30.32.1:8095`)
    and `musicassistant_api_token` (a long-lived token from the Music
    Assistant web UI's user settings, or its `auth/token/create` API
    command) and restart. The data source is provisioned automatically,
@@ -56,7 +65,9 @@ container. The reasoning is in the repository's `docs/security.md` and
    historical events route to query, only a live WebSocket subscription a
    one-request-per-query backend plugin cannot honestly offer.
 9. To use the bundled Home Assistant data source, set `homeassistant_url`
-   (this instance's own origin, e.g. `http://homeassistant.local:8123`)
+   (this instance's core over the Supervisor network, always
+   `http://homeassistant:8123`; a LAN or mDNS address is not reachable
+   from inside this app)
    and `homeassistant_access_token` (a long-lived access token from your
    Home Assistant profile's Security tab) and restart. It queries
    long-term statistics and system health over Home Assistant's own core

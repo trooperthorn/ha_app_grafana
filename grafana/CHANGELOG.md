@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026.09.17.5
+
+Docs only: the data source setup steps gave LAN and mDNS addresses for
+Home Assistant, Technitium DNS and Music Assistant, none of which are
+reachable from inside this app (no host networking). They now give the
+Supervisor-network hostname for Home Assistant core and a Technitium app
+on the same host, and the Supervisor bridge gateway for the
+host-networked Music Assistant app.
+
 ## 2026.09.17.4
 
 Fixed: the Ingress panel showed only a blank page with the browser's
