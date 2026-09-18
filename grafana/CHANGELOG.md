@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026.09.17.4
+
+Fixed: the Ingress panel showed only a blank page with the browser's
+broken-page icon. Grafana's `allow_embedding = false` (this app's default)
+makes Grafana send `X-Frame-Options: deny`, and `deny` refuses every
+frame, including the same-origin iframe Home Assistant uses for every
+Ingress panel. Grafana's log showed each page load served with 200 and
+then nothing, because the browser never ran the page. Grafana now runs
+with `allow_embedding = true` (it is reachable only through nginx on
+loopback) and nginx sends `X-Frame-Options: SAMEORIGIN` on the Ingress
+port unless the `allow_embedding` option is on, in which case no header
+is sent. The option keeps its meaning; the smoke test now checks the
+header. See docs/decisions.md.
+
 ## 2026.09.17.3
 
 Fixed: Grafana itself was exiting with `Error: ✗ unable to open database

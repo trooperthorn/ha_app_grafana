@@ -63,7 +63,13 @@ cookie_samesite = lax
 # Ingress terminates TLS in front of this; the cookie must not be marked
 # Secure or the browser would drop it on an http:// Home Assistant.
 cookie_secure = false
-allow_embedding = %%allow_embedding%%
+# Always on here, because Grafana's only alternative is X-Frame-Options:
+# deny, which blocks every frame including Home Assistant's own same-origin
+# Ingress panel (the panel is an iframe on the Home Assistant origin). The
+# frame policy is nginx's: it sends X-Frame-Options: SAMEORIGIN unless the
+# allow_embedding option is on. Grafana listens on loopback only, so nothing
+# reaches it without passing nginx. See docs/decisions.md.
+allow_embedding = true
 x_content_type_options = true
 x_xss_protection = true
 data_source_proxy_whitelist =

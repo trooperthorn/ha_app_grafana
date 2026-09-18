@@ -61,6 +61,10 @@ j -H 'X-Remote-User-Name: ed' http://127.0.0.1:1337/api/user/orgs | grep -q '"ro
 j -H 'X-Remote-User-Name: ed' -H 'X-WEBAUTH-ROLE: Admin' http://127.0.0.1:1337/api/user/orgs | grep -q '"role":"Editor"' \
     || fail "a browser-supplied X-WEBAUTH-ROLE was honoured"
 j -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/api/frontend/settings | grep -q '"disableLoginForm":true' || fail "login form is not disabled"
+# The Ingress panel is a same-origin iframe: SAMEORIGIN keeps it working,
+# Grafana's own "deny" would blank it.
+docker exec "$NAME" curl -s -D - -o /dev/null -H 'X-Remote-User-Name: sean' http://127.0.0.1:1337/ > "$WORK/index_headers.txt"
+grep -qi '^x-frame-options: *sameorigin' "$WORK/index_headers.txt" || fail "X-Frame-Options is not SAMEORIGIN on the Ingress port: $(grep -i x-frame "$WORK/index_headers.txt" || echo none)"
 pw="$(docker exec "$NAME" cat /data/secrets/admin_password)"
 expect 403 -u "admin:${pw}" -H 'X-Remote-User-Name: bob' http://127.0.0.1:1337/api/user
 echo "  ok: basic auth with the generated password is not an entry on the Ingress port"

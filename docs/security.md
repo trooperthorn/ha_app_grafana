@@ -99,7 +99,7 @@ OrionGuides.
 | Unprivileged processes | `setpriv --reuid=472 --regid=472 --clear-groups --inh-caps=-all` for nginx, ttyd and Grafana | Enforced | Smoke test checks `ps` for all three |
 | Role per Home Assistant user | nginx `map` from `/run/grafana-app/roles.map`, written by `run.sh` from the options after validating each username against `^[A-Za-z0-9._@+-]{1,64}$` | Enforced | Smoke test: Admin, Editor, and 403 for an unlisted user |
 | Default deny | `default_role: none` ships as the default and renders a static page | Enforced | Smoke test |
-| Embedding off | `allow_embedding` option, default false, into `[security] allow_embedding` | Enforced | By reading the template; not exercised by the smoke test |
+| Framing limited to the Home Assistant origin | `allow_embedding` option, default false, renders `add_header X-Frame-Options SAMEORIGIN always` into nginx; Grafana's own `allow_embedding` stays on because its header would be `deny`, which blocks the Ingress panel too | Enforced | Smoke test: the header is `SAMEORIGIN` on the Ingress port |
 | Telemetry off | `[analytics]`, `[snapshots]`, `[news]` | Enforced | By reading the template |
 | Plugin installs only through the options | `plugin_admin_enabled = false`; URL plugins hash-checked in `run.sh` before `unzip` | Enforced | By reading; the hash path is not exercised by the smoke test (no test plugin is hosted) |
 | SWIS plugin provenance | Built in the Dockerfile from OrionGuides at commit `508ed54`, in pinned `golang` and `node` stages | Enforced by the build | Verified: the smoke test confirms the plugin is registered as a backend plugin without a signature complaint |
