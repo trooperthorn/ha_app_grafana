@@ -1,6 +1,6 @@
 name: "Grafana (hardened)"
 description: "Grafana OSS behind Home Assistant Ingress with per-user roles, the SolarWinds SWIS data source built in, a recorded local-only terminal, and a custom AppArmor profile"
-version: "2026.09.17.3"
+version: "2026.09.17.4"
 slug: "grafana"
 init: false
 startup: services
@@ -88,9 +88,10 @@ schema:
   # What a Home Assistant user who is in neither list gets: nothing (a 403
   # page that says how to be added), or a read-only Viewer.
   default_role: list(none|Viewer)
-  # Off: Grafana refuses to render inside any frame except Ingress's own
-  # same-origin one. On: any page may frame it, which the Home Assistant
-  # iframe card needs and clickjacking protection loses.
+  # Off: nginx sends X-Frame-Options SAMEORIGIN, so only Home Assistant's
+  # own origin (the Ingress panel) may frame it. On: no header, any page may
+  # frame it, which a Grafana panel embedded from another origin needs and
+  # clickjacking protection loses.
   allow_embedding: bool
   terminal_enabled: bool
   terminal_session_recording: bool

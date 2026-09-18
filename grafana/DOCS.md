@@ -91,7 +91,7 @@ request after authenticating the session; a browser cannot supply its own.
 | `admin_users` | `[]` | Home Assistant usernames given the Admin role |
 | `editor_users` | `[]` | Home Assistant usernames given the Editor role |
 | `default_role` | `none` | `none` or `Viewer` for everyone else |
-| `allow_embedding` | `false` | Off: Grafana renders only inside Ingress. On: the Home Assistant iframe card can frame it, and any other page can too |
+| `allow_embedding` | `false` | Off: only pages on the Home Assistant origin (the Ingress panel, an iframe card pointing at the Ingress URL) can frame it. On: any page on any origin can frame it too |
 | `terminal_enabled` | `false` | Offer the terminal to administrators at `/terminal/` under the panel |
 | `terminal_session_recording` | `true` | Write every terminal session to a transcript with timing and record its hash |
 | `terminal_idle_timeout_minutes` | `30` | Close a shell idle at its prompt for this long; `0` disables |

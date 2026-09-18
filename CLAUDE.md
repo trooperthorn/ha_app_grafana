@@ -24,7 +24,17 @@ Protect, Home Assistant, HA SOC. SWIS's source is vendored in this repo
 git-fetched at build time, so that repo's other branches can't break this
 build.
 
-## Status as of 2026-09-17 (v2026.09.17.3, merged to `main`)
+## Status as of 2026-09-17 (v2026.09.17.4)
+
+v2026.09.17.4 fixed the first thing the live installation showed: an empty
+Ingress panel with the browser's broken-page icon. Grafana's own
+`allow_embedding = false` sends `X-Frame-Options: deny`, which blocks the
+same-origin iframe every Ingress panel lives in. Grafana now runs with
+embedding on (loopback only) and nginx sends `SAMEORIGIN` unless the
+`allow_embedding` option is on; the smoke test asserts the header. See
+docs/decisions.md. Not yet confirmed rendering on the live instance.
+
+## Earlier status (v2026.09.17.3)
 
 Two real production bugs were found and fixed this session, both only
 reproducible under the Supervisor (CI's smoke test is a plain `docker run`

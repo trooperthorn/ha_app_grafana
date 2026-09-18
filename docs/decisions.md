@@ -435,3 +435,27 @@ external reports of the same error. If `wal = false` does not resolve
 the crash, the next step is reading the denial (or absence of one) from
 Settings > System > Logs > Host per the entry above, which remains valid
 and unaffected by this change.
+
+## 2026-09-17: X-Frame-Options is nginx's, not Grafana's
+
+The first live installation showed an empty Ingress panel with the
+browser's broken-page icon. Grafana's own log was clean: each panel load
+was one index request answered 200, followed by no frontend API calls at
+all, which is what a frame the browser refused to run looks like.
+
+Grafana's `[security] allow_embedding` has only two states, and false is
+not "same-origin". In `pkg/middleware/middleware.go` the header is set
+as `X-Frame-Options: deny` whenever `AllowEmbedding` is false, and `deny`
+rejects every framer, the page's own origin included. Home Assistant
+renders every Ingress panel inside an iframe on its own origin, so the
+default this app shipped with blocked its own front door. The comment in
+`config.yaml` that claimed the Ingress frame survived was wrong and has
+been corrected.
+
+Grafana now always runs with `allow_embedding = true`, which only
+matters if something reaches it, and nothing does except nginx on
+loopback. nginx sends `X-Frame-Options: SAMEORIGIN` on the Ingress
+server unless the `allow_embedding` option is on, in which case run.sh
+renders the line empty and no header is sent. The option's meaning is
+unchanged for the operator: off means only Home Assistant's origin may
+frame Grafana, on means anyone may. The smoke test asserts the header.
