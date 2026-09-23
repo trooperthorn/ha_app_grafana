@@ -77,7 +77,7 @@ RUN set -eu; \
         go build -trimpath -ldflags="-s -w" -o "/out/gpx_technitium_dns_linux_${goarch}" ./pkg
 
 # ---- Stage 4: the Technitium DNS plugin frontend bundle, from the same source.
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS technitium-frontend
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS technitium-frontend
 COPY --from=technitium-backend /src /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
@@ -97,7 +97,7 @@ RUN set -eu; \
         go build -trimpath -ldflags="-s -w" -o "/out/gpx_music_assistant_linux_${goarch}" ./pkg
 
 # ---- Stage 6: the Music Assistant plugin frontend bundle, from the same source.
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS musicassistant-frontend
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS musicassistant-frontend
 COPY --from=musicassistant-backend /src /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
@@ -117,7 +117,7 @@ RUN set -eu; \
         go build -trimpath -ldflags="-s -w" -o "/out/gpx_unifi_network_linux_${goarch}" ./pkg
 
 # ---- Stage 8: the Unifi Network plugin frontend bundle, from the same source.
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS unifinetwork-frontend
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS unifinetwork-frontend
 COPY --from=unifinetwork-backend /src /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
@@ -137,7 +137,7 @@ RUN set -eu; \
         go build -trimpath -ldflags="-s -w" -o "/out/gpx_unifi_protect_linux_${goarch}" ./pkg
 
 # ---- Stage 10: the Unifi Protect plugin frontend bundle, from the same source.
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS unifiprotect-frontend
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS unifiprotect-frontend
 COPY --from=unifiprotect-backend /src /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
@@ -157,7 +157,7 @@ RUN set -eu; \
         go build -trimpath -ldflags="-s -w" -o "/out/gpx_home_assistant_linux_${goarch}" ./pkg
 
 # ---- Stage 12: the Home Assistant plugin frontend bundle, from the same source.
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS homeassistant-frontend
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS homeassistant-frontend
 COPY --from=homeassistant-backend /src /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
@@ -177,7 +177,7 @@ RUN set -eu; \
         go build -trimpath -ldflags="-s -w" -o "/out/gpx_ha_soc_linux_${goarch}" ./pkg
 
 # ---- Stage 14: the HA SOC plugin frontend bundle, from the same source.
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS hasoc-frontend
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS hasoc-frontend
 COPY --from=hasoc-backend /src /src
 WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
