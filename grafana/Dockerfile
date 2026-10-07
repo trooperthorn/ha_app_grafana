@@ -63,7 +63,7 @@ WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
 # ---- Stage 3: the Technitium DNS data source backend, from this repo's own source.
-FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS technitium-backend
+FROM golang:1.27.0-bookworm@sha256:ded31c68586d2e49e760acc2e65a884b23d032e9bbbed0ae0c55abd3fcaf4452 AS technitium-backend
 ARG BUILD_ARCH
 COPY plugins-src/technitium-datasource /src
 WORKDIR /src
@@ -83,7 +83,7 @@ WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
 # ---- Stage 5: the Music Assistant data source backend, from this repo's own source.
-FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS musicassistant-backend
+FROM golang:1.27.0-bookworm@sha256:ded31c68586d2e49e760acc2e65a884b23d032e9bbbed0ae0c55abd3fcaf4452 AS musicassistant-backend
 ARG BUILD_ARCH
 COPY plugins-src/musicassistant-datasource /src
 WORKDIR /src
@@ -103,7 +103,7 @@ WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
 # ---- Stage 7: the Unifi Network data source backend, from this repo's own source.
-FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS unifinetwork-backend
+FROM golang:1.27.0-bookworm@sha256:ded31c68586d2e49e760acc2e65a884b23d032e9bbbed0ae0c55abd3fcaf4452 AS unifinetwork-backend
 ARG BUILD_ARCH
 COPY plugins-src/unifi-network-datasource /src
 WORKDIR /src
@@ -123,7 +123,7 @@ WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
 # ---- Stage 9: the Unifi Protect data source backend, from this repo's own source.
-FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS unifiprotect-backend
+FROM golang:1.27.0-bookworm@sha256:ded31c68586d2e49e760acc2e65a884b23d032e9bbbed0ae0c55abd3fcaf4452 AS unifiprotect-backend
 ARG BUILD_ARCH
 COPY plugins-src/unifi-protect-datasource /src
 WORKDIR /src
@@ -143,7 +143,7 @@ WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
 # ---- Stage 11: the Home Assistant data source backend, from this repo's own source.
-FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS homeassistant-backend
+FROM golang:1.27.0-bookworm@sha256:ded31c68586d2e49e760acc2e65a884b23d032e9bbbed0ae0c55abd3fcaf4452 AS homeassistant-backend
 ARG BUILD_ARCH
 COPY plugins-src/homeassistant-datasource /src
 WORKDIR /src
@@ -163,7 +163,7 @@ WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
 # ---- Stage 13: the HA SOC data source backend, from this repo's own source.
-FROM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS hasoc-backend
+FROM golang:1.27.0-bookworm@sha256:ded31c68586d2e49e760acc2e65a884b23d032e9bbbed0ae0c55abd3fcaf4452 AS hasoc-backend
 ARG BUILD_ARCH
 COPY plugins-src/hasoc-datasource /src
 WORKDIR /src
