@@ -183,7 +183,7 @@ WORKDIR /src
 RUN npm ci --no-audit --no-fund --ignore-scripts && npm run build
 
 # ---- Stage 15: the app image.
-FROM grafana/grafana:13.2.2-ubuntu@sha256:9a68a82ec38931e1baacee5d471cf74aa42565eb49554caa5290663529de6941
+FROM grafana/grafana:13.3.0-ubuntu@sha256:74111b957a8528c1d7f396f57ded8d08a6c7d856ef80eea3f637daeabdde3aa9
 
 USER root
 
